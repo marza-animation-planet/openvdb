@@ -116,8 +116,26 @@ projs = [
                  ilmbase.Require(halfonly=True),
                  RequireBlosc,
                  tbb.Require]
+   },
+   {
+      "name": "OpenVDBMaya",
+      "type": "dynamicmodule",
+      "alias": "maya",
+      "rpaths": "../../../lib",
+      "bldprefix": maya.Version(),
+      "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
+      "defs": defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
+      "incdirs": [".", "openvdb"],
+      "srcs": glob.glob("openvdb_maya/maya/*.cc"),
+      "libs": ["openvdb_s"],
+      "custom": [maya.Require,
+                 boost.Require(libs=boost_libs),
+                 ilmbase.Require(halfonly=True),
+                 RequireBlosc,
+                 tbb.Require],
+      "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
+                  "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
    }
-   # maya
    # houdini
    # vdb_view
    # vdb_render
