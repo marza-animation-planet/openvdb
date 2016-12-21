@@ -12,6 +12,8 @@ import excons.tools.python as python
 
 env = excons.MakeBaseEnv()
 
+excons.SetArgument("use-c++11", 1)
+
 if sys.platform == "darwin":
    if "maya" in COMMAND_LINE_TARGETS and "houdini" in COMMAND_LINE_TARGETS:
       ver = maya.Version(asString=False, nice=True)
@@ -31,10 +33,8 @@ if sys.platform == "darwin":
             sys.exit(1)
 
       if usestd:
-         #excons.SetArgument("use-c++11", 0)
          excons.SetArgument("use-stdc++", 1)
       else:
-         #excons.SetArgument("use-c++11", 1)
          excons.SetArgument("use-stdc++", 0)
 
 
