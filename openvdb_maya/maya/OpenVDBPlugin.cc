@@ -166,8 +166,7 @@ MStatus initializePlugin(MObject);
 MStatus uninitializePlugin(MObject);
 
 
-MStatus
-initializePlugin(MObject obj)
+PLUGIN_EXPORT MStatus initializePlugin(MObject obj)
 {
     openvdb::initialize();
 
@@ -186,8 +185,7 @@ initializePlugin(MObject obj)
 }
 
 
-MStatus
-uninitializePlugin(MObject obj)
+PLUGIN_EXPORT MStatus uninitializePlugin(MObject obj)
 {
     MStatus status;
     MFnPlugin plugin(obj);
