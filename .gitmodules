@@ -4,3 +4,6 @@
 [submodule "c-blosc"]
 	path = c-blosc
 	url = git://github.com/gatgui/c-blosc
+[submodule "glfw"]
+	path = glfw
+	url = git://github.com/gatgui/glfw.git

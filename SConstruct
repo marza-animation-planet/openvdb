@@ -5,8 +5,8 @@ import excons.tools.maya as maya
 import excons.tools.houdini as houdini
 import excons.tools.boost as boost
 import excons.tools.tbb as tbb
-import excons.tools.zlib as zlib
 import excons.tools.ilmbase as ilmbase
+import excons.tools.openexr as openexr
 import excons.tools.openexr as openexr
 import excons.tools.python as python
 import excons.tools.gl as gl
@@ -15,11 +15,16 @@ env = excons.MakeBaseEnv()
 
 excons.SetArgument("use-c++11", 1)
 
+abi3 = (excons.GetArgument("abi3", 0, int) != 0)
+
 # Force Blosc static build
 excons.Call("c-blosc", static=1)
 Import("RequireBlosc")
 
-defs = []
+excons.Call("glfw")
+Import("RequireGLFW")
+
+defs = ([] if not abi3 else ["OPENVDB_3_ABI_COMPATIBLE"])
 if sys.platform == "win32":
    defs.append("NOMINMAX")
    lib_defs = defs + ["HALF_EXPORTS"]
@@ -32,8 +37,7 @@ boost_libs = ["iostreams", "system"] #, "thread"]
 lib_requires = [ilmbase.Require(halfonly=True),
                 boost.Require(libs=boost_libs),
                 RequireBlosc,
-                tbb.Require,
-                zlib.Require]
+                tbb.Require]
 
 include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
 InstallHeaders  = env.Install(include_basedir, glob.glob("openvdb/*.h"))
@@ -108,10 +112,43 @@ projs = [
                  gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
+   },
+   {
+      "name": "vdb_print",
+      "type": "program",
+      "alias": "bin",
+      "incdirs": [".", "openvdb"],
+      "defs": defs + ["OPENVDB_STATICLIB"],
+      "srcs": glob.glob("openvdb/cmd/openvdb_print/*.cc"),
+      "libs": ["openvdb_s"],
+      "custom": lib_requires
+   },
+   {
+      "name": "vdb_render",
+      "type": "program",
+      "alias": "bin",
+      "incdirs": [".", "openvdb"],
+      "defs": defs + ["OPENVDB_STATICLIB"],
+      "srcs": glob.glob("openvdb/cmd/openvdb_render/*.cc"),
+      "libs": ["openvdb_s"],
+      "custom": [openexr.Require(ilmbase=False, zlib=False),
+                 ilmbase.Require(ilmthread=True, iexmath=False, python=False),
+                 boost.Require(libs=boost_libs),
+                 RequireBlosc,
+                 tbb.Require]
+   },
+   {
+      "name": "vdb_view",
+      "type": "program",
+      "alias": "bin",
+      "incdirs": [".", "openvdb"],
+      "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3", "GL_GLEXT_PROTOTYPES=1"],
+      "srcs": glob.glob("openvdb/cmd/openvdb_view/*.cc") +
+              glob.glob("openvdb/viewer/*.cc"),
+      "libs": ["openvdb_s"],
+      "custom": [RequireGLFW(static=True), boost.Require(libs=["thread"])] + lib_requires,
+      "install": {"include/openvdb_viewer": glob.glob("openvdb/viewer/*.h")}
    }
-   # vdb_view
-   # vdb_render
-   # vdb_print
 ]
 
 targets = excons.DeclareTargets(env, projs)
