@@ -16,12 +16,8 @@ env = excons.MakeBaseEnv()
 excons.SetArgument("use-c++11", 1)
 
 # Force Blosc static build
-old_static = ARGUMENTS.get("static", "0")
-ARGUMENTS["static"] = "1"
-SConscript("c-blosc/SConstruct")
-ARGUMENTS["static"] = old_static
+excons.Call("c-blosc", static=1)
 Import("RequireBlosc")
-
 
 defs = []
 if sys.platform == "win32":
