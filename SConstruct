@@ -9,34 +9,11 @@ import excons.tools.zlib as zlib
 import excons.tools.ilmbase as ilmbase
 import excons.tools.openexr as openexr
 import excons.tools.python as python
+import excons.tools.gl as gl
 
 env = excons.MakeBaseEnv()
 
 excons.SetArgument("use-c++11", 1)
-
-if sys.platform == "darwin":
-   if "maya" in COMMAND_LINE_TARGETS and "houdini" in COMMAND_LINE_TARGETS:
-      ver = maya.Version(asString=False, nice=True)
-      usestd = False
-      if ver < 2017:
-         # using libstdc++
-         usestd = True
-
-      ver = houdini.Version(asString=False, full=False)
-      if ver < 15.5:
-         if not usestd:
-            print("Cannot build: Maya is linked against libc++ while houdini against libstdc++")
-            sys.exit(1)
-      else:
-         if usestd:
-            print("Cannot build: Maya is linked against libstdc++ while houdini against libc++")
-            sys.exit(1)
-
-      if usestd:
-         excons.SetArgument("use-stdc++", 1)
-      else:
-         excons.SetArgument("use-stdc++", 0)
-
 
 # Force Blosc static build
 old_static = ARGUMENTS.get("static", "0")
@@ -132,7 +109,8 @@ projs = [
                  boost.Require(libs=boost_libs),
                  ilmbase.Require(halfonly=True),
                  RequireBlosc,
-                 tbb.Require],
+                 tbb.Require,
+                 gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
    }
