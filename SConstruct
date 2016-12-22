@@ -39,11 +39,12 @@ lib_requires = [ilmbase.Require(halfonly=True),
                 tbb.Require,
                 zlib.Require]
 
-install_files = {"include/openvdb": glob.glob("openvdb/*.h"),
-                 "include/openvdb/io": glob.glob("openvdb/io/*.h"),
-                 "include/openvdb/math": glob.glob("openvdb/math/*.h"),
-                 "include/openvdb/points": glob.glob("openvdb/points/*.h"),
-                 "include/openvdb/util": glob.glob("openvdb/util/*.h")}
+include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
+InstallHeaders  = env.Install(include_basedir, glob.glob("openvdb/*.h"))
+InstallHeaders += env.Install(include_basedir + "/io", glob.glob("openvdb/io/*.h"))
+InstallHeaders += env.Install(include_basedir + "/math", glob.glob("openvdb/math/*.h"))
+InstallHeaders += env.Install(include_basedir + "/points", glob.glob("openvdb/points/*.h"))
+InstallHeaders += env.Install(include_basedir + "/util", glob.glob("openvdb/util/*.h"))
 
 projs = [
    {  "name": "openvdb",
@@ -60,8 +61,7 @@ projs = [
               glob.glob("openvdb/points/*.cc") +
               glob.glob("openvdb/util/*.cc"),
       "deps": ["blosc"],
-      "custom": lib_requires,
-      "install": install_files
+      "custom": lib_requires
    },
    {  "name": "openvdb_s",
       "type": "staticlib",
@@ -75,7 +75,6 @@ projs = [
               glob.glob("openvdb/util/*.cc"),
       "deps": ["blosc"],
       "custom": lib_requires
-      #"install": install_files
    },
    {
       "name": "pyopenvdb",
@@ -85,9 +84,9 @@ projs = [
       "ext": python.ModuleExtension(),
       "prefix": "%s/%s" % (python.ModulePrefix(), python.Version()),
       "incdirs": [".", "openvdb"],
-      "defs": defs + ["OPENVDB_STATICLIB"], #["OPENVDB_DLL"],
+      "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/python/*.cc"),
-      "libs": ["openvdb_s"], #["openvdb"],
+      "libs": ["openvdb_s"],
       "custom": [python.SoftRequire,
                  boost.Require(libs=boost_libs + ["python"]),
                  ilmbase.Require(halfonly=True),
@@ -114,12 +113,13 @@ projs = [
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
    }
-   # houdini
    # vdb_view
    # vdb_render
    # vdb_print
 ]
 
 targets = excons.DeclareTargets(env, projs)
+
+env.Depends("lib", InstallHeaders)
 
 Default(["lib"])
