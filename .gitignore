@@ -3,3 +3,5 @@
 /debug
 *.dblite
 excons.cache
+*.env.tmp
+/eco

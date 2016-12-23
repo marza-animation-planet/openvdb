@@ -155,4 +155,19 @@ targets = excons.DeclareTargets(env, projs)
 
 env.Depends("lib", InstallHeaders)
 
+plat = excons.EcosystemPlatform()
+dist_env, ver_dir = excons.EcosystemDist(env, "openvdb.env",
+                                         {"bin": "/%s/bin" % plat,
+                                          "lib": "/%s/lib" % plat,
+                                          "python": "/%s/lib/python/%s" % (plat, python.Version()),
+                                          "maya": "/%s/maya/%s/plug-ins" % (plat, maya.Version(nice=True))})
+eco_incbase = "%s/%s/include/openvdb" % (ver_dir, plat)
+dist_env.Install(eco_incbase, glob.glob("openvdb/*.h"))
+dist_env.Install(eco_incbase + "/io", glob.glob("openvdb/io/*.h"))
+dist_env.Install(eco_incbase + "/math", glob.glob("openvdb/math/*.h"))
+dist_env.Install(eco_incbase + "/points", glob.glob("openvdb/points/*.h"))
+dist_env.Install(eco_incbase + "/util", glob.glob("openvdb/util/*.h"))
+dist_env.Install("%s/%s/maya/scripts" % (ver_dir, plat), glob.glob("openvdb_maya/maya/*.mel"))
+
+
 Default(["lib"])
