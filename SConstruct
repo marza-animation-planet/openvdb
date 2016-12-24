@@ -17,8 +17,7 @@ excons.SetArgument("use-c++11", 1)
 
 abi3 = (excons.GetArgument("abi3", 0, int) != 0)
 
-# Force Blosc static build
-excons.Call("c-blosc", static=1)
+excons.Call("c-blosc", {"static": 1})
 Import("RequireBlosc")
 
 excons.Call("glfw")
@@ -32,7 +31,7 @@ else:
    lib_defs = defs
 lib_defs.extend(["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"])
 
-boost_libs = ["iostreams", "system"] #, "thread"]
+boost_libs = ["iostreams", "system"]
 
 lib_requires = [ilmbase.Require(halfonly=True),
                 boost.Require(libs=boost_libs),
