@@ -13,7 +13,15 @@ import excons.tools.gl as gl
 
 env = excons.MakeBaseEnv()
 
-excons.SetArgument("use-c++11", 1)
+if sys.platform == "win32":
+  # Require mscver 14.0 at least
+  mscver = float(excons.GetArgument("mscver", "14.0"))
+  if mscver < 14.0:
+    print("vc14.0 at least required on windows for C++11 proper support.")
+    sys.exit(1)
+  excons.SetArgument("mscver", str(mscver))
+else:
+  excons.SetArgument("use-c++11", 1)
 
 abi3 = (excons.GetArgument("abi3", 0, int) != 0)
 
