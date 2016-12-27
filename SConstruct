@@ -41,6 +41,12 @@ lib_defs.extend(["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"])
 
 boost_libs = ["iostreams", "system"]
 
+lib_srcs = glob.glob("openvdb/*.cc") + \
+           glob.glob("openvdb/io/*.cc") + \
+           glob.glob("openvdb/math/*.cc") + \
+           glob.glob("openvdb/points/*.cc") + \
+           glob.glob("openvdb/util/*.cc")
+
 lib_requires = [ilmbase.Require(halfonly=True),
                 boost.Require(libs=boost_libs),
                 RequireBlosc,
@@ -62,11 +68,7 @@ projs = [
       "soname": "libopenvdb.so.4",
       "incdirs": [".", "openvdb"],
       "defs": lib_defs + ["OPENVDB_DLL"],
-      "srcs": glob.glob("openvdb/*.cc") +
-              glob.glob("openvdb/io/*.cc") +
-              glob.glob("openvdb/math/*.cc") +
-              glob.glob("openvdb/points/*.cc") +
-              glob.glob("openvdb/util/*.cc"),
+      "srcs": lib_srcs,
       "deps": ["blosc"],
       "custom": lib_requires
    },
@@ -75,11 +77,7 @@ projs = [
       "alias": "lib",
       "incdirs": [".", "openvdb"],
       "defs": lib_defs + ["OPENVDB_STATICLIB"],
-      "srcs": glob.glob("openvdb/*.cc") +
-              glob.glob("openvdb/io/*.cc") +
-              glob.glob("openvdb/math/*.cc") +
-              glob.glob("openvdb/points/*.cc") +
-              glob.glob("openvdb/util/*.cc"),
+      "srcs": lib_srcs,
       "deps": ["blosc"],
       "custom": lib_requires
    },
@@ -107,15 +105,15 @@ projs = [
       "rpaths": "../../../lib",
       "bldprefix": maya.Version(),
       "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
-      "defs": defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
+      "defs": lib_defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
       "incdirs": [".", "openvdb"],
-      "srcs": glob.glob("openvdb_maya/maya/*.cc"),
-      "libs": ["openvdb_s"],
+      "srcs": lib_srcs + glob.glob("openvdb_maya/maya/*.cc"),
+      "deps": ["blosc"],
+      "libs": ["tbb"],
       "custom": [maya.Require,
                  boost.Require(libs=boost_libs),
                  ilmbase.Require(halfonly=True),
                  RequireBlosc,
-                 tbb.Require,
                  gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
