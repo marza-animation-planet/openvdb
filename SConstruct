@@ -25,7 +25,7 @@ else:
 
 abi3 = (excons.GetArgument("abi3", 0, int) != 0)
 
-excons.Call("c-blosc", {"static": 1})
+excons.Call("c-blosc")
 Import("RequireBlosc")
 
 excons.Call("glfw")
@@ -49,7 +49,7 @@ lib_srcs = glob.glob("openvdb/*.cc") + \
 
 lib_requires = [ilmbase.Require(halfonly=True),
                 boost.Require(libs=boost_libs),
-                RequireBlosc,
+                RequireBlosc(static=True),
                 tbb.Require]
 
 include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
@@ -75,6 +75,7 @@ projs = [
    {  "name": "openvdb_s",
       "type": "staticlib",
       "alias": "lib",
+      "symvis": "default",
       "incdirs": [".", "openvdb"],
       "defs": lib_defs + ["OPENVDB_STATICLIB"],
       "srcs": lib_srcs,
@@ -85,6 +86,7 @@ projs = [
       "name": "pyopenvdb",
       "type": "dynamicmodule",
       "alias": "python",
+      "symvis": "default",
       "rpaths": ["../.."],
       "ext": python.ModuleExtension(),
       "prefix": "%s/%s" % (python.ModulePrefix(), python.Version()),
@@ -95,7 +97,7 @@ projs = [
       "custom": [python.SoftRequire,
                  boost.Require(libs=boost_libs + ["python"]),
                  ilmbase.Require(halfonly=True),
-                 RequireBlosc,
+                 RequireBlosc(static=True),
                  tbb.Require]
    },
    {
@@ -113,7 +115,7 @@ projs = [
       "custom": [maya.Require,
                  boost.Require(libs=boost_libs),
                  ilmbase.Require(halfonly=True),
-                 RequireBlosc,
+                 RequireBlosc(static=True),
                  gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
@@ -137,9 +139,9 @@ projs = [
       "srcs": glob.glob("openvdb/cmd/openvdb_render/*.cc"),
       "libs": ["openvdb_s"],
       "custom": [openexr.Require(ilmbase=False, zlib=False),
-                 ilmbase.Require(ilmthread=True, iexmath=False, python=False),
+                 ilmbase.Require(ilmthread=True, iexmath=True, python=False),
                  boost.Require(libs=boost_libs),
-                 RequireBlosc,
+                 RequireBlosc(static=True),
                  tbb.Require]
    },
    {
@@ -173,6 +175,3 @@ dist_env.Install(eco_incbase + "/math", glob.glob("openvdb/math/*.h"))
 dist_env.Install(eco_incbase + "/points", glob.glob("openvdb/points/*.h"))
 dist_env.Install(eco_incbase + "/util", glob.glob("openvdb/util/*.h"))
 dist_env.Install("%s/%s/maya/scripts" % (ver_dir, plat), glob.glob("openvdb_maya/maya/*.mel"))
-
-
-Default(["lib"])
