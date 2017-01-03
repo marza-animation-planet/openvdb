@@ -30,7 +30,7 @@
 
 /// @author FX R&D OpenVDB team
 
-#include "OpenVDBPlugin.h"
+#include "OpenVDBReadNode.h"
 #include <openvdb_maya/OpenVDBData.h>
 #include <openvdb_maya/OpenVDBUtil.h>
 #include <openvdb/io/Stream.h>
@@ -51,36 +51,12 @@ namespace mvdb = openvdb_maya;
 ////////////////////////////////////////
 
 
-struct OpenVDBReadNode : public MPxNode
-{
-    OpenVDBReadNode() {}
-    virtual ~OpenVDBReadNode() {}
-
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-
-    static void* creator();
-    static MStatus initialize();
-    static MTypeId id;
-    static MObject aVdbFilePath;
-    static MObject aFrameNumbering;
-    static MObject aInputTime;
-    static MObject aVdbOutput;
-    static MObject aNodeInfo;
-};
-
-
 MTypeId OpenVDBReadNode::id(0x00108A51);
 MObject OpenVDBReadNode::aVdbFilePath;
 MObject OpenVDBReadNode::aFrameNumbering;
 MObject OpenVDBReadNode::aInputTime;
 MObject OpenVDBReadNode::aVdbOutput;
 MObject OpenVDBReadNode::aNodeInfo;
-
-
-namespace {
-    mvdb::NodeRegistry registerNode("OpenVDBRead", OpenVDBReadNode::id,
-        OpenVDBReadNode::creator, OpenVDBReadNode::initialize);
-}
 
 
 ////////////////////////////////////////

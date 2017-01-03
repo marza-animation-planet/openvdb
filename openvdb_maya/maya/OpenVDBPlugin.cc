@@ -30,8 +30,18 @@
 
 /// @author FX R&D OpenVDB team
 
-#include <openvdb_maya/OpenVDBData.h>
 #include "OpenVDBPlugin.h"
+#include "OpenVDBReadNode.h"
+#include "OpenVDBWriteNode.h"
+#include "OpenVDBCopyNode.h"
+#include "OpenVDBFilterNode.h"
+#include "OpenVDBTransformNode.h"
+#include "OpenVDBFromMayaFluidNode.h"
+#include "OpenVDBFromPolygonsNode.h"
+#include "OpenVDBToPolygonsNode.h"
+#include "OpenVDBVisualizeNode.h"
+
+#include <openvdb_maya/OpenVDBData.h>
 
 #include <openvdb/Platform.h>
 #include <openvdb/openvdb.h>
@@ -75,13 +85,7 @@ struct NodeInfo {
 
 typedef std::vector<NodeInfo> NodeList;
 
-typedef tbb::mutex Mutex;
-typedef Mutex::scoped_lock Lock;
-
-// Declare this at file scope to ensure thread-safe initialization.
-Mutex sRegistryMutex;
-
-NodeList * gNodes = NULL;
+NodeList * gNodes = new NodeList();
 
 } // unnamed namespace
 
@@ -98,14 +102,6 @@ NodeRegistry::NodeRegistry(const MString& typeName, const MTypeId& typeId,
     node.type               = type;
     node.classification     = classification;
 
-    Lock lock(sRegistryMutex);
-
-    if (!gNodes) {
-        OPENVDB_START_THREADSAFE_STATIC_WRITE
-        gNodes = new NodeList();
-        OPENVDB_FINISH_THREADSAFE_STATIC_WRITE
-    }
-
     gNodes->push_back(node);
 }
 
@@ -113,22 +109,18 @@ NodeRegistry::NodeRegistry(const MString& typeName, const MTypeId& typeId,
 void
 NodeRegistry::registerNodes(MFnPlugin& plugin, MStatus& status)
 {
-    Lock lock(sRegistryMutex);
+    for (size_t n = 0, N = gNodes->size(); n < N; ++n) {
 
-    if (gNodes) {
-        for (size_t n = 0, N = gNodes->size(); n < N; ++n) {
+        const NodeInfo& node = (*gNodes)[n];
 
-            const NodeInfo& node = (*gNodes)[n];
+        status = plugin.registerNode(node.typeName, node.typeId,
+            node.creatorFunction, node.initFunction, node.type, node.classification);
 
-            status = plugin.registerNode(node.typeName, node.typeId,
-                node.creatorFunction, node.initFunction, node.type, node.classification);
-
-            if (!status) {
-                const std::string msg = "Failed to register '" +
-                    std::string(node.typeName.asChar()) + "'";
-                status.perror(msg.c_str());
-                break;
-            }
+        if (!status) {
+            const std::string msg = "Failed to register '" +
+                std::string(node.typeName.asChar()) + "'";
+            status.perror(msg.c_str());
+            break;
         }
     }
 }
@@ -137,23 +129,27 @@ NodeRegistry::registerNodes(MFnPlugin& plugin, MStatus& status)
 void
 NodeRegistry::deregisterNodes(MFnPlugin& plugin, MStatus& status)
 {
-    Lock lock(sRegistryMutex);
+    for (size_t n = 0, N = gNodes->size(); n < N; ++n) {
 
-    if (gNodes) {
-        for (size_t n = 0, N = gNodes->size(); n < N; ++n) {
+        const NodeInfo& node = (*gNodes)[n];
 
-            const NodeInfo& node = (*gNodes)[n];
+        status = plugin.deregisterData(node.typeId);
 
-            status = plugin.deregisterData(node.typeId);
-
-            if (!status) {
-                const std::string msg = "Failed to deregister '" +
-                    std::string(node.typeName.asChar()) + "'";
-                status.perror(msg.c_str());
-                break;
-            }
+        if (!status) {
+            const std::string msg = "Failed to deregister '" +
+                std::string(node.typeName.asChar()) + "'";
+            status.perror(msg.c_str());
+            break;
         }
     }
+}
+
+template <class NodeClass>
+static void AddNode(const MString &typeName,
+                    MPxNode::Type type = MPxNode::kDependNode,
+                    const MString* classification = NULL)
+{
+    NodeRegistry(typeName, NodeClass::id, NodeClass::creator, NodeClass::initialize, type, classification);
 }
 
 } // namespace openvdb_maya
@@ -178,6 +174,16 @@ PLUGIN_EXPORT MStatus initializePlugin(MObject obj)
         status.perror("Failed to register 'OpenVDBData'");
         return status;
     }
+
+    openvdb_maya::AddNode<OpenVDBReadNode>("OpenVDBRead");
+    openvdb_maya::AddNode<OpenVDBWriteNode>("OpenVDBWrite");
+    openvdb_maya::AddNode<OpenVDBCopyNode>("OpenVDBCopy");
+    openvdb_maya::AddNode<OpenVDBFilterNode>("OpenVDBFilter");
+    openvdb_maya::AddNode<OpenVDBTransformNode>("OpenVDBTransform");
+    openvdb_maya::AddNode<OpenVDBFromMayaFluidNode>("OpenVDBFromMayaFluid");
+    openvdb_maya::AddNode<OpenVDBFromPolygonsNode>("OpenVDBFromPolygons");
+    openvdb_maya::AddNode<OpenVDBToPolygonsNode>("OpenVDBToPolygons");
+    openvdb_maya::AddNode<OpenVDBVisualizeNode>("OpenVDBVisualize", MPxNode::kLocatorNode);
 
     openvdb_maya::NodeRegistry::registerNodes(plugin, status);
 

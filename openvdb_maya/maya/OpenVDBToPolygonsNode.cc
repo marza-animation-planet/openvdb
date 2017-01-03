@@ -32,7 +32,7 @@
 ///
 /// @author Fredrik Salomonsson (fredriks@d2.com)
 
-#include "OpenVDBPlugin.h"
+#include "OpenVDBToPolygonsNode.h"
 #include <openvdb_maya/OpenVDBData.h>
 #include <openvdb_maya/OpenVDBUtil.h>
 
@@ -63,26 +63,6 @@ namespace mvdb = openvdb_maya;
 ////////////////////////////////////////
 
 
-struct OpenVDBToPolygonsNode : public MPxNode
-{
-    OpenVDBToPolygonsNode() {}
-    virtual ~OpenVDBToPolygonsNode() {}
-
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-
-    static void * creator();
-    static MStatus initialize();
-
-    static MTypeId id;
-    static MObject aVdbInput;
-    static MObject aIsovalue;
-    static MObject aAdaptivity;
-    static MObject aVdbAllGridNames;
-    static MObject aVdbSelectedGridNames;
-    static MObject aMeshOutput;
-};
-
-
 MTypeId OpenVDBToPolygonsNode::id(0x00108A59);
 MObject OpenVDBToPolygonsNode::aVdbInput;
 MObject OpenVDBToPolygonsNode::aIsovalue;
@@ -96,9 +76,6 @@ MObject OpenVDBToPolygonsNode::aMeshOutput;
 
 
 namespace {
-
-mvdb::NodeRegistry registerNode("OpenVDBToPolygons", OpenVDBToPolygonsNode::id,
-    OpenVDBToPolygonsNode::creator, OpenVDBToPolygonsNode::initialize);
 
 // Internal utility methods
 

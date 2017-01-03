@@ -30,7 +30,8 @@
 
 /// @author FX R&D OpenVDB team
 
-#include "OpenVDBPlugin.h"
+#include "OpenVDBFromMayaFluidNode.h"
+#include <openvdb_maya/OpenVDBUtil.h>
 #include <openvdb_maya/OpenVDBData.h>
 
 #include <openvdb/tools/Dense.h>
@@ -49,41 +50,6 @@
 #include <maya/MFnNumericAttribute.h>
 
 namespace mvdb = openvdb_maya;
-
-
-struct OpenVDBFromMayaFluidNode : public MPxNode
-{
-public:
-    OpenVDBFromMayaFluidNode() {}
-    virtual ~OpenVDBFromMayaFluidNode() {}
-
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-
-    static void* creator();
-    static MStatus initialize();
-
-    static MTypeId id;
-    static MObject aFluidNodeName;
-    static MObject aVdbOutput;
-
-    static MObject aDensity;
-    static MObject aDensityName;
-    static MObject aTemperature;
-    static MObject aTemperatureName;
-    static MObject aPressure;
-    static MObject aPressureName;
-    static MObject aFuel;
-    static MObject aFuelName;
-    static MObject aFalloff;
-    static MObject aFalloffName;
-    static MObject aVelocity;
-    static MObject aVelocityName;
-    static MObject aColors;
-    static MObject aColorsName;
-    static MObject aCoordinates;
-    static MObject aCoordinatesName;
-    static MObject aTime;
-};
 
 
 MTypeId OpenVDBFromMayaFluidNode::id(0x00108A55);
@@ -107,11 +73,6 @@ MObject OpenVDBFromMayaFluidNode::aColorsName;
 MObject OpenVDBFromMayaFluidNode::aCoordinates;
 MObject OpenVDBFromMayaFluidNode::aCoordinatesName;
 MObject OpenVDBFromMayaFluidNode::aTime;
-
-namespace {
-    mvdb::NodeRegistry registerNode("OpenVDBFromMayaFluid", OpenVDBFromMayaFluidNode::id,
-        OpenVDBFromMayaFluidNode::creator, OpenVDBFromMayaFluidNode::initialize);
-}
 
 
 ////////////////////////////////////////

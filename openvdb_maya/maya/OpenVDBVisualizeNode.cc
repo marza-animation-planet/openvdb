@@ -32,7 +32,7 @@
 ///
 /// @author FX R&D OpenVDB team
 
-#include "OpenVDBPlugin.h"
+#include "OpenVDBVisualizeNode.h"
 #include <openvdb_maya/OpenVDBData.h>
 #include <openvdb_maya/OpenVDBUtil.h>
 
@@ -52,60 +52,6 @@
 
 
 namespace mvdb = openvdb_maya;
-
-
-////////////////////////////////////////
-
-
-struct OpenVDBVisualizeNode : public MPxLocatorNode
-{
-    OpenVDBVisualizeNode();
-    virtual ~OpenVDBVisualizeNode();
-
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-
-    virtual void draw(M3dView & view, const MDagPath & path,
-        M3dView::DisplayStyle style, M3dView::DisplayStatus status);
-
-    virtual bool isBounded() const;
-    virtual MBoundingBox boundingBox() const;
-
-    static void * creator();
-    static  MStatus initialize();
-
-    static MObject aVdbInput;
-    static MObject aVdbAllGridNames;
-    static MObject aVdbSelectedGridNames;
-
-    static MObject aVisualizeBBox;
-    static MObject aVisualizeInternalNodes;
-    static MObject aVisualizeLeafNodes;
-    static MObject aVisualizeActiveTiles;
-    static MObject aVisualizeActiveVoxels;
-    static MObject aVisualizeSurface;
-    static MObject aIsovalue;
-
-    static MObject aCachedBBox;
-    static MObject aCachedInternalNodes;
-    static MObject aCachedLeafNodes;
-    static MObject aCachedActiveTiles;
-    static MObject aCachedActiveVoxels;
-    static MObject aCachedSurface;
-
-
-    static MTypeId id;
-
-private:
-    std::vector<mvdb::BufferObject> mBBoxBuffers;
-    std::vector<mvdb::BufferObject> mNodeBuffers;
-    std::vector<mvdb::BufferObject> mLeafBuffers;
-    std::vector<mvdb::BufferObject> mTileBuffers;
-    std::vector<mvdb::BufferObject> mSurfaceBuffers;
-    std::vector<mvdb::BufferObject> mPointBuffers;
-
-    mvdb::ShaderProgram mSurfaceShader, mPointShader;
-    MBoundingBox mBBox;
-};
 
 
 ////////////////////////////////////////
@@ -131,12 +77,6 @@ MObject OpenVDBVisualizeNode::aCachedActiveVoxels;
 MObject OpenVDBVisualizeNode::aCachedSurface;
 
 MTypeId OpenVDBVisualizeNode::id(0x00108A53);
-
-
-namespace {
-    mvdb::NodeRegistry registerNode("OpenVDBVisualize", OpenVDBVisualizeNode::id,
-        OpenVDBVisualizeNode::creator, OpenVDBVisualizeNode::initialize, MPxNode::kLocatorNode);
-}
 
 
 ////////////////////////////////////////

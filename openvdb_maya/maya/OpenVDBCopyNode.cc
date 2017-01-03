@@ -30,7 +30,7 @@
 
 /// @author FX R&D OpenVDB team
 
-#include "OpenVDBPlugin.h"
+#include "OpenVDBCopyNode.h"
 #include <openvdb_maya/OpenVDBData.h>
 #include <openvdb_maya/OpenVDBUtil.h>
 
@@ -50,37 +50,12 @@ namespace mvdb = openvdb_maya;
 ////////////////////////////////////////
 
 
-struct OpenVDBCopyNode : public MPxNode
-{
-    OpenVDBCopyNode() {}
-    virtual ~OpenVDBCopyNode() {}
-
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-
-    static void* creator();
-    static MStatus initialize();
-
-    static MTypeId id;
-    static MObject aVdbInputA;
-    static MObject aVdbInputB;
-    static MObject aVdbOutput;
-    static MObject aVdbSelectedGridNamesA;
-    static MObject aVdbSelectedGridNamesB;
-};
-
-
 MTypeId OpenVDBCopyNode::id(0x00108A58);
 MObject OpenVDBCopyNode::aVdbOutput;
 MObject OpenVDBCopyNode::aVdbInputA;
 MObject OpenVDBCopyNode::aVdbInputB;
 MObject OpenVDBCopyNode::aVdbSelectedGridNamesA;
 MObject OpenVDBCopyNode::aVdbSelectedGridNamesB;
-
-
-namespace {
-    mvdb::NodeRegistry registerNode("OpenVDBCopy", OpenVDBCopyNode::id,
-        OpenVDBCopyNode::creator, OpenVDBCopyNode::initialize);
-}
 
 
 ////////////////////////////////////////
