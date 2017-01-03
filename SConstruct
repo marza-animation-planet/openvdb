@@ -69,7 +69,7 @@ projs = [
       "incdirs": [".", "openvdb"],
       "defs": lib_defs + ["OPENVDB_DLL"],
       "srcs": lib_srcs,
-      "deps": ["blosc"],
+      "deps": ["blosc_s"],
       "custom": lib_requires
    },
    {  "name": "openvdb_s",
@@ -79,7 +79,7 @@ projs = [
       "incdirs": [".", "openvdb"],
       "defs": lib_defs + ["OPENVDB_STATICLIB"],
       "srcs": lib_srcs,
-      "deps": ["blosc"],
+      "deps": ["blosc_s"],
       "custom": lib_requires
    },
    {
@@ -104,13 +104,14 @@ projs = [
       "name": "OpenVDBMaya",
       "type": "dynamicmodule",
       "alias": "maya",
+      "symvis": "default",
       "rpaths": "../../../lib",
       "bldprefix": maya.Version(),
       "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
       "defs": lib_defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
       "incdirs": [".", "openvdb"],
       "srcs": lib_srcs + glob.glob("openvdb_maya/maya/*.cc"),
-      "deps": ["blosc"],
+      "deps": ["blosc_s"],
       "libs": ["tbb"],
       "custom": [maya.Require,
                  boost.Require(libs=boost_libs),
@@ -118,12 +119,14 @@ projs = [
                  RequireBlosc(static=True),
                  gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
-                  "include/openvdb_maya": glob.glob("openvdb_maya/maya/*.h")}
+                  "include/openvdb_maya": ["openvdb_maya/maya/OpenVDBData.h",
+                                           "openvdb_maya/maya/OpenVDBUtil.h"]}
    },
    {
       "name": "vdb_print",
       "type": "program",
       "alias": "bin",
+      "symvis": "default",
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/cmd/openvdb_print/*.cc"),
@@ -134,6 +137,7 @@ projs = [
       "name": "vdb_render",
       "type": "program",
       "alias": "bin",
+      "symvis": "default",
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/cmd/openvdb_render/*.cc"),
@@ -148,6 +152,7 @@ projs = [
       "name": "vdb_view",
       "type": "program",
       "alias": "bin",
+      "symvis": "default",
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3", "GL_GLEXT_PROTOTYPES=1"],
       "srcs": glob.glob("openvdb/cmd/openvdb_view/*.cc") +
