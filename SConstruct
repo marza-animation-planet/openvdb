@@ -93,7 +93,7 @@ projs = [
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/python/*.cc"),
-      "libs": ["openvdb_s"],
+      "staticlibs": ["openvdb_s"],
       "custom": [python.SoftRequire,
                  boost.Require(libs=boost_libs + ["python"]),
                  ilmbase.Require(halfonly=True),
@@ -110,13 +110,14 @@ projs = [
       "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
       "defs": lib_defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
       "incdirs": [".", "openvdb"],
-      "srcs": lib_srcs + glob.glob("openvdb_maya/maya/*.cc"),
+      "srcs": glob.glob("openvdb_maya/maya/*.cc"),
       "deps": ["blosc_s"],
-      "libs": ["tbb"],
+      "staticlibs": ["openvdb_s"],
       "custom": [maya.Require,
                  boost.Require(libs=boost_libs),
                  ilmbase.Require(halfonly=True),
                  RequireBlosc(static=True),
+                 tbb.Require,
                  gl.Require],
       "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
                   "include/openvdb_maya": ["openvdb_maya/maya/OpenVDBData.h",
@@ -130,7 +131,7 @@ projs = [
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/cmd/openvdb_print/*.cc"),
-      "libs": ["openvdb_s"],
+      "staticlibs": ["openvdb_s"],
       "custom": lib_requires
    },
    {
@@ -141,7 +142,7 @@ projs = [
       "incdirs": [".", "openvdb"],
       "defs": defs + ["OPENVDB_STATICLIB"],
       "srcs": glob.glob("openvdb/cmd/openvdb_render/*.cc"),
-      "libs": ["openvdb_s"],
+      "staticlibs": ["openvdb_s"],
       "custom": [openexr.Require(ilmbase=False, zlib=False),
                  ilmbase.Require(ilmthread=True, iexmath=True, python=False),
                  boost.Require(libs=boost_libs),
@@ -157,7 +158,7 @@ projs = [
       "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3", "GL_GLEXT_PROTOTYPES=1"],
       "srcs": glob.glob("openvdb/cmd/openvdb_view/*.cc") +
               glob.glob("openvdb/viewer/*.cc"),
-      "libs": ["openvdb_s"],
+      "staticlibs": ["openvdb_s"],
       "custom": [RequireGLFW(static=True), boost.Require(libs=["thread"])] + lib_requires,
       "install": {"include/openvdb_viewer": glob.glob("openvdb/viewer/*.h")}
    }
