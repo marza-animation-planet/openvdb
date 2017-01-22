@@ -62,6 +62,7 @@ projs = [
   {
     "name": "openvdb",
     "type": "sharedlib",
+    "desc": "OpenVDB shared library",
     "alias": "lib",
     "version": "4.0.1",
     "install_name": "libopenvdb.4.dylib",
@@ -75,6 +76,7 @@ projs = [
   {
     "name": "openvdb_s",
     "type": "staticlib",
+    "desc": "OpenVDB static library",
     "alias": "lib",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
@@ -86,6 +88,7 @@ projs = [
   {
     "name": "pyopenvdb",
     "type": "dynamicmodule",
+    "desc": "OpenVDB python module",
     "alias": "python",
     "symvis": "default",
     "rpaths": ["../.."],
@@ -104,6 +107,7 @@ projs = [
   {
     "name": "OpenVDBMaya",
     "type": "dynamicmodule",
+    "desc": "OpenVDB Maya plugins",
     "alias": "maya",
     "symvis": "default",
     "rpaths": "../../../lib",
@@ -127,6 +131,7 @@ projs = [
   {
     "name": "vdb_print",
     "type": "program",
+    "desc": "OpenVDB command line tool",
     "alias": "bins",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
@@ -138,6 +143,7 @@ projs = [
   {
     "name": "vdb_render",
     "type": "program",
+    "desc": "OpenVDB command line tool",
     "alias": "bins",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
@@ -153,6 +159,7 @@ projs = [
   {
     "name": "vdb_view",
     "type": "program",
+    "desc": "OpenVDB command line tool",
     "alias": "bins",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
@@ -164,6 +171,13 @@ projs = [
     "install": {"include/openvdb_viewer": glob.glob("openvdb/viewer/*.h")}
   }
 ]
+
+build_opts = """OPENVDB OPTIONS
+   abi3=0|1 : Compile with OpenVDB 3 ABI compatibility"""
+   
+excons.AddHelpOptions(openvdb=build_opts)
+excons.AddHelpTargets(eco="Ecosystem distribution")
+excons.AddHelpOptions(eco="ECO OPTIONS\n  eco-dir=<path> : Ecosystem distribution install directory")
 
 targets = excons.DeclareTargets(env, projs)
 
@@ -185,35 +199,43 @@ if "eco" in COMMAND_LINE_TARGETS:
   dist_env.Install(eco_incbase + "/util", glob.glob("openvdb/util/*.h"))
   dist_env.Install("%s/%s/maya/scripts" % (ver_dir, plat), glob.glob("openvdb_maya/maya/*.mel"))
 
-excons.SetHelp("""USAGE
-  scons [OPTIONS] TARGET*
+# excons.AddHelpTargets(("openvdb_s", "Static library"),
+#                       ("openvdb", "Shared library"),
+#                       ("pyopenvdb", "Python binding"),
+#                       ("OpenVDBMaya", "Maya plugins"),
+#                       ("vdb_print", "Command line tool"),
+#                       ("vdb_render", "Command line tool"),
+#                       ("vdb_view", "Command line tool"))
 
-AVAILABLE TARGETS
-  openvdb     : Shared library
-  openvdb_s   : Static library
-  pyopenvdb   : Python module
-  OpenVDBMaya : Maya plugins
-  vdb_print   : Command line tool
-  vdb_render  : Command line tool
-  vdb_view    : Command line tool
+# excons.SetHelp("""USAGE
+#   scons [OPTIONS] TARGET*
 
-  lib         : Static and shared libraries
-  python      : Same as 'pyopenvdb'
-  bins        : All command line tools
-  maya        : Same as 'OpenVDBMaya'
-  eco         : Ecosystem distribution
+# AVAILABLE TARGETS
+#   openvdb     : Shared library
+#   openvdb_s   : Static library
+#   pyopenvdb   : Python module
+#   OpenVDBMaya : Maya plugins
+#   vdb_print   : Command line tool
+#   vdb_render  : Command line tool
+#   vdb_view    : Command line tool
 
-OPENVDB OPTIONS
-  abi3=0|1    : Compile with OpenVDB 3 ABI compatibility
+#   lib         : Static and shared libraries
+#   python      : Same as 'pyopenvdb'
+#   bins        : All command line tools
+#   maya        : Same as 'OpenVDBMaya'
+#   eco         : Ecosystem distribution
 
-%s
-%s
-%s
-%s
-%s
-%s""" % (python.GetOptionsString(),
-         ilmbase.GetOptionsString(),
-         openexr.GetOptionsString(),
-         boost.GetOptionsString(),
-         tbb.GetOptionsString(),
-         excons.GetOptionsString()))
+# OPENVDB OPTIONS
+#   abi3=0|1    : Compile with OpenVDB 3 ABI compatibility
+
+# %s
+# %s
+# %s
+# %s
+# %s
+# %s""" % (python.GetOptionsString(),
+#          ilmbase.GetOptionsString(),
+#          openexr.GetOptionsString(),
+#          boost.GetOptionsString(),
+#          tbb.GetOptionsString(),
+#          excons.GetOptionsString()))
