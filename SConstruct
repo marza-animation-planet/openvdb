@@ -1,5 +1,4 @@
 import sys
-import glob
 import excons
 import excons.tools.maya as maya
 import excons.tools.houdini as houdini
@@ -22,29 +21,31 @@ if sys.platform == "win32":
 else:
   excons.SetArgument("use-c++11", 1)
 
-abi3 = (excons.GetArgument("abi3", 0, int) != 0)
+abi3 = (excons.GetArgument("openvdb-abi3", 0, int) != 0)
 
-excons.Call("c-blosc")
-Import("RequireBlosc")
+excons.Call("c-blosc", imp=["RequireBlosc"])
+excons.Call("glfw", imp=["RequireGLFW"])
 
-excons.Call("glfw")
-Import("RequireGLFW")
+cppflags = ""
 
 defs = ([] if not abi3 else ["OPENVDB_3_ABI_COMPATIBLE"])
 if sys.platform == "win32":
    defs.append("NOMINMAX")
    lib_defs = defs + ["HALF_EXPORTS"]
+   # 4146: unary minus operator applied to unsigned type
+   # 4800: forcing value to bool 'true' or 'false'
+   cppflags += " /wd4800 /wd4146"
 else:
    lib_defs = defs
 lib_defs.extend(["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"])
 
 boost_libs = ["iostreams", "system"]
 
-lib_srcs = glob.glob("openvdb/*.cc") + \
-           glob.glob("openvdb/io/*.cc") + \
-           glob.glob("openvdb/math/*.cc") + \
-           glob.glob("openvdb/points/*.cc") + \
-           glob.glob("openvdb/util/*.cc")
+lib_srcs = excons.glob("openvdb/*.cc") + \
+           excons.glob("openvdb/io/*.cc") + \
+           excons.glob("openvdb/math/*.cc") + \
+           excons.glob("openvdb/points/*.cc") + \
+           excons.glob("openvdb/util/*.cc")
 
 lib_requires = [ilmbase.Require(halfonly=True),
                 boost.Require(libs=boost_libs),
@@ -52,23 +53,24 @@ lib_requires = [ilmbase.Require(halfonly=True),
                 tbb.Require]
 
 include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
-InstallHeaders  = env.Install(include_basedir, glob.glob("openvdb/*.h"))
-InstallHeaders += env.Install(include_basedir + "/io", glob.glob("openvdb/io/*.h"))
-InstallHeaders += env.Install(include_basedir + "/math", glob.glob("openvdb/math/*.h"))
-InstallHeaders += env.Install(include_basedir + "/points", glob.glob("openvdb/points/*.h"))
-InstallHeaders += env.Install(include_basedir + "/util", glob.glob("openvdb/util/*.h"))
+InstallHeaders  = env.Install(include_basedir, excons.glob("openvdb/*.h"))
+InstallHeaders += env.Install(include_basedir + "/io", excons.glob("openvdb/io/*.h"))
+InstallHeaders += env.Install(include_basedir + "/math", excons.glob("openvdb/math/*.h"))
+InstallHeaders += env.Install(include_basedir + "/points", excons.glob("openvdb/points/*.h"))
+InstallHeaders += env.Install(include_basedir + "/util", excons.glob("openvdb/util/*.h"))
 
 projs = [
   {
     "name": "openvdb",
     "type": "sharedlib",
     "desc": "OpenVDB shared library",
-    "alias": "lib",
+    "alias": "openvdb-lib",
     "version": "4.0.1",
     "install_name": "libopenvdb.4.dylib",
     "soname": "libopenvdb.so.4",
     "incdirs": [".", "openvdb"],
     "defs": lib_defs + ["OPENVDB_DLL"],
+    "cppflags": cppflags,
     "srcs": lib_srcs,
     "deps": ["blosc_s"],
     "custom": lib_requires
@@ -77,10 +79,11 @@ projs = [
     "name": "openvdb_s",
     "type": "staticlib",
     "desc": "OpenVDB static library",
-    "alias": "lib",
+    "alias": "openvdb-lib",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
     "defs": lib_defs + ["OPENVDB_STATICLIB"],
+    "cppflags": cppflags,
     "srcs": lib_srcs,
     "deps": ["blosc_s"],
     "custom": lib_requires
@@ -89,14 +92,15 @@ projs = [
     "name": "pyopenvdb",
     "type": "dynamicmodule",
     "desc": "OpenVDB python module",
-    "alias": "python",
+    "alias": "openvdb-python",
     "symvis": "default",
     "rpaths": ["../.."],
     "ext": python.ModuleExtension(),
     "prefix": "%s/%s" % (python.ModulePrefix(), python.Version()),
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
-    "srcs": glob.glob("openvdb/python/*.cc"),
+    "cppflags": cppflags,
+    "srcs": excons.glob("openvdb/python/*.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": [python.SoftRequire,
                boost.Require(libs=boost_libs + ["python"]),
@@ -108,14 +112,15 @@ projs = [
     "name": "OpenVDBMaya",
     "type": "dynamicmodule",
     "desc": "OpenVDB Maya plugins",
-    "alias": "maya",
+    "alias": "openvdb-maya",
     "symvis": "default",
     "rpaths": "../../../lib",
     "bldprefix": maya.Version(),
     "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
     "defs": lib_defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
+    "cppflags": cppflags,
     "incdirs": [".", "openvdb"],
-    "srcs": glob.glob("openvdb_maya/maya/*.cc"),
+    "srcs": excons.glob("openvdb_maya/maya/*.cc"),
     "deps": ["blosc_s"],
     "staticlibs": ["openvdb_s"],
     "custom": [maya.Require,
@@ -124,7 +129,7 @@ projs = [
                RequireBlosc(static=True),
                tbb.Require,
                gl.Require],
-    "install": {"maya/scripts": glob.glob("openvdb_maya/maya/*.mel"),
+    "install": {"maya/scripts": excons.glob("openvdb_maya/maya/*.mel"),
                 "include/openvdb_maya": ["openvdb_maya/maya/OpenVDBData.h",
                                          "openvdb_maya/maya/OpenVDBUtil.h"]}
   },
@@ -132,11 +137,12 @@ projs = [
     "name": "vdb_print",
     "type": "program",
     "desc": "OpenVDB command line tool",
-    "alias": "bins",
+    "alias": "openvdb-tools",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
-    "srcs": glob.glob("openvdb/cmd/openvdb_print/*.cc"),
+    "cppflags": cppflags,
+    "srcs": excons.glob("openvdb/cmd/openvdb_print/*.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": lib_requires
   },
@@ -144,11 +150,12 @@ projs = [
     "name": "vdb_render",
     "type": "program",
     "desc": "OpenVDB command line tool",
-    "alias": "bins",
+    "alias": "openvdb-tools",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
-    "srcs": glob.glob("openvdb/cmd/openvdb_render/*.cc"),
+    "cppflags": cppflags,
+    "srcs": excons.glob("openvdb/cmd/openvdb_render/*.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": [openexr.Require(ilmbase=False, zlib=False),
                ilmbase.Require(ilmthread=True, iexmath=True, python=False),
@@ -160,20 +167,21 @@ projs = [
     "name": "vdb_view",
     "type": "program",
     "desc": "OpenVDB command line tool",
-    "alias": "bins",
+    "alias": "openvdb-tools",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3", "GL_GLEXT_PROTOTYPES=1"],
-    "srcs": glob.glob("openvdb/cmd/openvdb_view/*.cc") +
-            glob.glob("openvdb/viewer/*.cc"),
+    "cppflags": cppflags,
+    "srcs": excons.glob("openvdb/cmd/openvdb_view/*.cc") +
+            excons.glob("openvdb/viewer/*.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": [RequireGLFW(static=True), boost.Require(libs=["thread"])] + lib_requires,
-    "install": {"include/openvdb_viewer": glob.glob("openvdb/viewer/*.h")}
+    "install": {"include/openvdb_viewer": excons.glob("openvdb/viewer/*.h")}
   }
 ]
 
 build_opts = """OPENVDB OPTIONS
-   abi3=0|1 : Compile with OpenVDB 3 ABI compatibility"""
+   openvdb-abi3=0|1 : Compile with OpenVDB 3 ABI compatibility"""
    
 excons.AddHelpOptions(openvdb=build_opts)
 excons.AddHelpTargets(eco="Ecosystem distribution")
@@ -192,50 +200,9 @@ if "eco" in COMMAND_LINE_TARGETS:
                                             "python": "/%s/lib/python/%s" % (plat, python.Version()),
                                             "maya": "/%s/maya/%s/plug-ins" % (plat, maya.Version(nice=True))})
   eco_incbase = "%s/%s/include/openvdb" % (ver_dir, plat)
-  dist_env.Install(eco_incbase, glob.glob("openvdb/*.h"))
-  dist_env.Install(eco_incbase + "/io", glob.glob("openvdb/io/*.h"))
-  dist_env.Install(eco_incbase + "/math", glob.glob("openvdb/math/*.h"))
-  dist_env.Install(eco_incbase + "/points", glob.glob("openvdb/points/*.h"))
-  dist_env.Install(eco_incbase + "/util", glob.glob("openvdb/util/*.h"))
-  dist_env.Install("%s/%s/maya/scripts" % (ver_dir, plat), glob.glob("openvdb_maya/maya/*.mel"))
-
-# excons.AddHelpTargets(("openvdb_s", "Static library"),
-#                       ("openvdb", "Shared library"),
-#                       ("pyopenvdb", "Python binding"),
-#                       ("OpenVDBMaya", "Maya plugins"),
-#                       ("vdb_print", "Command line tool"),
-#                       ("vdb_render", "Command line tool"),
-#                       ("vdb_view", "Command line tool"))
-
-# excons.SetHelp("""USAGE
-#   scons [OPTIONS] TARGET*
-
-# AVAILABLE TARGETS
-#   openvdb     : Shared library
-#   openvdb_s   : Static library
-#   pyopenvdb   : Python module
-#   OpenVDBMaya : Maya plugins
-#   vdb_print   : Command line tool
-#   vdb_render  : Command line tool
-#   vdb_view    : Command line tool
-
-#   lib         : Static and shared libraries
-#   python      : Same as 'pyopenvdb'
-#   bins        : All command line tools
-#   maya        : Same as 'OpenVDBMaya'
-#   eco         : Ecosystem distribution
-
-# OPENVDB OPTIONS
-#   abi3=0|1    : Compile with OpenVDB 3 ABI compatibility
-
-# %s
-# %s
-# %s
-# %s
-# %s
-# %s""" % (python.GetOptionsString(),
-#          ilmbase.GetOptionsString(),
-#          openexr.GetOptionsString(),
-#          boost.GetOptionsString(),
-#          tbb.GetOptionsString(),
-#          excons.GetOptionsString()))
+  dist_env.Install(eco_incbase, excons.glob("openvdb/*.h"))
+  dist_env.Install(eco_incbase + "/io", excons.glob("openvdb/io/*.h"))
+  dist_env.Install(eco_incbase + "/math", excons.glob("openvdb/math/*.h"))
+  dist_env.Install(eco_incbase + "/points", excons.glob("openvdb/points/*.h"))
+  dist_env.Install(eco_incbase + "/util", excons.glob("openvdb/util/*.h"))
+  dist_env.Install("%s/%s/maya/scripts" % (ver_dir, plat), excons.glob("openvdb_maya/maya/*.mel"))

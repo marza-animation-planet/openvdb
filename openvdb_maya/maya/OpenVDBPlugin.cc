@@ -157,11 +157,6 @@ static void AddNode(const MString &typeName,
 
 ////////////////////////////////////////
 
-
-MStatus initializePlugin(MObject);
-MStatus uninitializePlugin(MObject);
-
-
 PLUGIN_EXPORT MStatus initializePlugin(MObject obj)
 {
     openvdb::initialize();
