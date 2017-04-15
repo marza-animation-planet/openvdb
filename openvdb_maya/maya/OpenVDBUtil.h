@@ -60,7 +60,7 @@
 #endif
 
 // Visual Studio 2015 OpenGL headers do not defined GLchar
-#ifdef _MSC_VER >= 1900
+#if _MSC_VER >= 1900
 typedef signed char GLchar;
 #endif 
 
