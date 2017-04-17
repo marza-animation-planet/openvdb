@@ -238,10 +238,11 @@ env.Depends(targets["openvdb_s"], InstallHeaders)
 if "eco" in COMMAND_LINE_TARGETS:
   plat = excons.EcosystemPlatform()
   dist_env, ver_dir = excons.EcosystemDist(env, "openvdb.env",
-                                           {"bin": "/%s/bin" % plat,
-                                            "lib": "/%s/lib" % plat,
-                                            "python": "/%s/lib/python/%s" % (plat, python.Version()),
-                                            "maya": "/%s/maya/%s/plug-ins" % (plat, maya.Version(nice=True))})
+                                           {"openvdb-tools": "/%s/bin" % plat,
+                                            "openvdb-static": "/%s/lib" % plat,
+                                            "openvdb-shared": "/%s/lib" % plat,
+                                            "openvdb-python": "/%s/lib/python/%s" % (plat, python.Version()),
+                                            "openvdb-maya": "/%s/maya/%s/plug-ins" % (plat, maya.Version(nice=True))})
   eco_incbase = "%s/%s/include/openvdb" % (ver_dir, plat)
   dist_env.Install(eco_incbase, excons.glob("openvdb/*.h"))
   dist_env.Install(eco_incbase + "/io", excons.glob("openvdb/io/*.h"))
