@@ -78,15 +78,18 @@ MObject OpenVDBVisualizeNode::aCachedSurface;
 
 MTypeId OpenVDBVisualizeNode::id(0x00108A53);
 
-#ifdef _WIN32
-bool OpenVDBVisualizeNode::msGLEWInitialized = false;
-#endif
-
 ////////////////////////////////////////
 
 
 OpenVDBVisualizeNode::OpenVDBVisualizeNode()
 {
+    static bool sInitGLEW = true;
+
+    if (sInitGLEW) {
+        glewInit();
+        sInitGLEW = false;
+    }
+
     mSurfaceShader.setVertShader(
         "#version 120\n"
         "varying vec3 normal;\n"
@@ -473,14 +476,6 @@ void
 OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         M3dView::DisplayStyle /*style*/, M3dView::DisplayStatus status)
 {
-#ifdef _WIN32
-    if (!msGLEWInitialized)
-    {
-        glewInit();
-        msGLEWInitialized = true;
-    }
-#endif
-
     MObject thisNode = thisMObject();
 
     const bool isSelected = (status == M3dView::kActive) || (status == M3dView::kLead);

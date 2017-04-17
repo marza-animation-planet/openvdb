@@ -463,9 +463,6 @@ ViewerImpl::init(const std::string& progName)
             OPENVDB_LOG_DEBUG_RUNTIME("initialized GLFW from thread "
                 << boost::this_thread::get_id());
             mDidInit = true;
-#ifdef _WIN32
-            glewInit();
-#endif
         } else {
             OPENVDB_LOG_ERROR("GLFW initialization failed");
         }
@@ -540,6 +537,7 @@ ViewerImpl::open(int width, int height)
             boost::shared_ptr<GLFWwindow> curWindow(
                 glfwGetCurrentContext(), glfwMakeContextCurrent);
             glfwMakeContextCurrent(mWindow);
+            glewInit();
             BitmapFont13::initialize();
         }
     }
@@ -570,6 +568,7 @@ ViewerImpl::open(int width, int height)
     }
     glfwSetWindowTitle(mProgName.c_str());
 
+    glewInit();
     BitmapFont13::initialize();
 
     glfwSetKeyCallback(keyCB);

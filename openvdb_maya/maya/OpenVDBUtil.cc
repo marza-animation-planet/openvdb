@@ -391,11 +391,23 @@ BufferObject::genColorBuffer(const std::vector<GLfloat>& v)
 void
 BufferObject::clear()
 {
-    if (glIsBuffer(mIndexBuffer) == GL_TRUE) glDeleteBuffers(1, &mIndexBuffer);
-    if (glIsBuffer(mVertexBuffer) == GL_TRUE) glDeleteBuffers(1, &mVertexBuffer);
-    if (glIsBuffer(mColorBuffer) == GL_TRUE) glDeleteBuffers(1, &mColorBuffer);
-    if (glIsBuffer(mNormalBuffer) == GL_TRUE) glDeleteBuffers(1, &mNormalBuffer);
+    if (mIndexBuffer != 0) {
+        if (glIsBuffer(mIndexBuffer) == GL_TRUE) glDeleteBuffers(1, &mIndexBuffer);
+    }
+    if (mVertexBuffer != 0) {
+        if (glIsBuffer(mVertexBuffer) == GL_TRUE) glDeleteBuffers(1, &mVertexBuffer);
+    }
+    if (mColorBuffer != 0) {
+        if (glIsBuffer(mColorBuffer) == GL_TRUE) glDeleteBuffers(1, &mColorBuffer);
+    }
+    if (mNormalBuffer != 0) {
+        if (glIsBuffer(mNormalBuffer) == GL_TRUE) glDeleteBuffers(1, &mNormalBuffer);
+    }
 
+    mIndexBuffer = 0;
+    mVertexBuffer = 0;
+    mColorBuffer = 0;
+    mNormalBuffer = 0;
     mPrimType = GL_POINTS;
     mPrimNum = 0;
 }
@@ -507,18 +519,24 @@ ShaderProgram::clear()
     GLsizei numShaders;
     GLuint shaders[2];
 
-    glGetAttachedShaders(mProgram, 2, &numShaders, shaders);
-
-    // detach and remove shaders
-    for (GLsizei n = 0; n < numShaders; ++n) {
-
-        glDetachShader(mProgram, shaders[n]);
-
-        if (glIsShader(shaders[n]) == GL_TRUE) glDeleteShader(shaders[n]);
+    if (mProgram != 0) {
+        if (glIsProgram(mProgram) == GL_TRUE) {
+            glGetAttachedShaders(mProgram, 2, &numShaders, shaders);
+            // detach and remove shaders
+            for (GLsizei n = 0; n < numShaders; ++n) {
+                glDetachShader(mProgram, shaders[n]);
+                if (glIsShader(shaders[n]) == GL_TRUE) {
+                    glDeleteShader(shaders[n]);
+                }
+            }
+            // remove program
+            glDeleteProgram(mProgram);
+        }
     }
 
-    // remove program
-    if (glIsProgram(mProgram)) glDeleteProgram(mProgram);
+    mProgram = 0;
+    mVertShader = 0;
+    mFragShader = 0;
 }
 
 

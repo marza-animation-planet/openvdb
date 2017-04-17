@@ -60,14 +60,10 @@ def halfRequire(env):
 def openexrRequire(env):
   RequireIlmImf(env, static=True)
 
-# GLEW (windows only)
-glew_incdirs = []
-glew_defs = []
-glew_srcs = []
-if sys.platform == "win32":
-  glew_incdirs = ["ext/glew-2.0.0/include"]
-  glew_defs = ["GLEW_STATIC"]
-  glew_srcs = ["ext/glew-2.0.0/src/glew.c"]
+# GLEW (always include sources)
+glew_incdirs = ["ext/glew-2.0.0/include"]
+glew_defs = ["GLEW_STATIC"]
+glew_srcs = ["ext/glew-2.0.0/src/glew.c"]
 
 
 
@@ -213,7 +209,7 @@ projs = [
     "symvis": "default",
     "incdirs": [".", "openvdb"] + glew_incdirs,
     "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3"] + glew_defs,
-    "cppflags": cppflags,
+    "cppflags": cppflags + (" -Wno-deprecated-declarations" if sys.platform == "darwin" else ""),
     "srcs": excons.glob("openvdb/cmd/openvdb_view/*.cc") +
             excons.glob("openvdb/viewer/*.cc") +
             glew_srcs,

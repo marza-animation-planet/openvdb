@@ -40,9 +40,7 @@
 
 #include <boost/random/mersenne_twister.hpp>
 
-#ifdef _WIN32
 #include <GL/glew.h>
-#endif
 #if defined(__APPLE__) || defined(MACOSX)
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>

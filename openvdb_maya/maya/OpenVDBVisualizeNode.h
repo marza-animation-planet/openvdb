@@ -92,9 +92,6 @@ private:
 
     openvdb_maya::ShaderProgram mSurfaceShader, mPointShader;
     MBoundingBox mBBox;
-#ifdef _WIN32
-    static bool msGLEWInitialized;
-#endif
 };
 
 #endif // OPENVDB_MAYA_VISUALIZE_NODE_HAS_BEEN_INCLUDED

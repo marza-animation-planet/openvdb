@@ -59,7 +59,7 @@ global proc replaceOpenVDBToPolygonsGridSelection(string $attr)
 global proc updateOpenVDBToPolygonsGridSelection(string $attr)
 {
     string $selectedGrid = `optionMenu -q -value vdbGridNameMenu`;
-    string $selectionAttr = plugNode($attr) + ".VdbSelectedGridNames";
+    string $selectionAttr = plugNode($attr) + ".vdbSelectedGridNames";
     setAttr -type "string" $selectionAttr $selectedGrid;
 }
 
