@@ -5,3 +5,7 @@
 excons.cache
 *.env.tmp
 /eco
+*.cmake.*
+/.sconf_temp/
+config.log
+

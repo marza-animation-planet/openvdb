@@ -7,3 +7,9 @@
 [submodule "glfw"]
 	path = glfw
 	url = git://github.com/gatgui/glfw.git
+[submodule "zlib"]
+	path = zlib
+	url = git://github.com/gatgui/zlib
+[submodule "openexr"]
+	path = openexr
+	url = git://github.com/gatgui/openexr

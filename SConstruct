@@ -1,13 +1,12 @@
+import os
 import sys
 import excons
 import excons.tools.maya as maya
-import excons.tools.houdini as houdini
 import excons.tools.boost as boost
 import excons.tools.tbb as tbb
-import excons.tools.ilmbase as ilmbase
-import excons.tools.openexr as openexr
 import excons.tools.python as python
 import excons.tools.gl as gl
+import excons.tools.threads as threads
 
 env = excons.MakeBaseEnv()
 
@@ -23,20 +22,58 @@ else:
 
 abi3 = (excons.GetArgument("openvdb-abi3", 0, int) != 0)
 
-excons.Call("c-blosc", imp=["RequireBlosc"])
+
+overrides = {}
+
+# Zlib (require by openexr and c-blosc)
+def zlibName(static):
+  return (("zlib" if static else "zdll") if sys.platform == "win32" else "z")
+
+def zlibDefines(static):
+  return ([] if static else ["ZLIB_DLL"])
+
+rv = excons.ExternalLibRequire("zlib", libnameFunc=zlibName, definesFunc=zlibDefines)
+if not rv["require"]:
+  excons.PrintOnce("OpenVDB: Build zlib from sources ...")
+  excons.Call("zlib", imp=["ZlibName", "ZlibPath", "RequireZlib"])
+  def zlibRequire(env):
+    RequireZlib(env, static=True)
+  overrides["with-zlib"] = os.path.dirname(os.path.dirname(ZlibPath(True)))
+  overrides["zlib-static"] = 1
+  overrides["zlib-name"] = ZlibName(True)
+else:
+  zlibRequire = rv["require"]
+
+# C-Blosc (always build from sources)
+excons.Call("c-blosc", overrides=overrides, imp=["RequireBlosc"])
+def bloscRequire(env):
+  RequireBlosc(env, static=True)
+
+# GLFW (always build from sources)
 excons.Call("glfw", imp=["RequireGLFW"])
+def glfwRequire(env):
+  RequireGLFW(static=True)(env)
+
+# OpenEXR (always build from sources)
+excons.Call("openexr", overrides=overrides, imp=["RequireHalf", "RequireIlmImf"])
+def halfRequire(env):
+  RequireHalf(env, static=True)
+def openexrRequire(env):
+  RequireIlmImf(env, static=True)
+
+
 
 cppflags = ""
 
 defs = ([] if not abi3 else ["OPENVDB_3_ABI_COMPATIBLE"])
 if sys.platform == "win32":
-   defs.append("NOMINMAX")
-   lib_defs = defs + ["HALF_EXPORTS"]
-   # 4146: unary minus operator applied to unsigned type
-   # 4800: forcing value to bool 'true' or 'false'
-   cppflags += " /wd4800 /wd4146"
+  defs.append("NOMINMAX")
+  lib_defs = defs + ["HALF_EXPORTS"]
+  # 4146: unary minus operator applied to unsigned type
+  # 4800: forcing value to bool 'true' or 'false'
+  cppflags += " /wd4800 /wd4146"
 else:
-   lib_defs = defs
+  lib_defs = defs
 lib_defs.extend(["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"])
 
 boost_libs = ["iostreams", "system"]
@@ -47,9 +84,10 @@ lib_srcs = excons.glob("openvdb/*.cc") + \
            excons.glob("openvdb/points/*.cc") + \
            excons.glob("openvdb/util/*.cc")
 
-lib_requires = [ilmbase.Require(halfonly=True),
-                boost.Require(libs=boost_libs),
-                RequireBlosc(static=True),
+lib_requires = [boost.Require(libs=boost_libs),
+                halfRequire,
+                bloscRequire,
+                zlibRequire, # openvdb uses zlib directly too
                 tbb.Require]
 
 include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
@@ -64,7 +102,7 @@ projs = [
     "name": "openvdb",
     "type": "sharedlib",
     "desc": "OpenVDB shared library",
-    "alias": "openvdb-lib",
+    "alias": "openvdb-shared",
     "version": "4.0.1",
     "install_name": "libopenvdb.4.dylib",
     "soname": "libopenvdb.so.4",
@@ -79,7 +117,7 @@ projs = [
     "name": "openvdb_s",
     "type": "staticlib",
     "desc": "OpenVDB static library",
-    "alias": "openvdb-lib",
+    "alias": "openvdb-static",
     "symvis": "default",
     "incdirs": [".", "openvdb"],
     "defs": lib_defs + ["OPENVDB_STATICLIB"],
@@ -104,8 +142,8 @@ projs = [
     "staticlibs": ["openvdb_s"],
     "custom": [python.SoftRequire,
                boost.Require(libs=boost_libs + ["python"]),
-               ilmbase.Require(halfonly=True),
-               RequireBlosc(static=True),
+               halfRequire,
+               bloscRequire,
                tbb.Require]
   },
   {
@@ -125,8 +163,8 @@ projs = [
     "staticlibs": ["openvdb_s"],
     "custom": [maya.Require,
                boost.Require(libs=boost_libs),
-               ilmbase.Require(halfonly=True),
-               RequireBlosc(static=True),
+               halfRequire,
+               bloscRequire,
                tbb.Require,
                gl.Require],
     "install": {"maya/scripts": excons.glob("openvdb_maya/maya/*.mel"),
@@ -157,10 +195,9 @@ projs = [
     "cppflags": cppflags,
     "srcs": excons.glob("openvdb/cmd/openvdb_render/*.cc"),
     "staticlibs": ["openvdb_s"],
-    "custom": [openexr.Require(ilmbase=False, zlib=False),
-               ilmbase.Require(ilmthread=True, iexmath=True, python=False),
-               boost.Require(libs=boost_libs),
-               RequireBlosc(static=True),
+    "custom": [boost.Require(libs=boost_libs),
+               openexrRequire,
+               bloscRequire,
                tbb.Require]
   },
   {
@@ -175,13 +212,13 @@ projs = [
     "srcs": excons.glob("openvdb/cmd/openvdb_view/*.cc") +
             excons.glob("openvdb/viewer/*.cc"),
     "staticlibs": ["openvdb_s"],
-    "custom": [RequireGLFW(static=True), boost.Require(libs=["thread"])] + lib_requires,
+    "custom": [glfwRequire, boost.Require(libs=["thread"])] + lib_requires,
     "install": {"include/openvdb_viewer": excons.glob("openvdb/viewer/*.h")}
   }
 ]
 
 build_opts = """OPENVDB OPTIONS
-   openvdb-abi3=0|1 : Compile with OpenVDB 3 ABI compatibility"""
+   openvdb-abi3=0|1   : Compile with OpenVDB 3 ABI compatibility"""
    
 excons.AddHelpOptions(openvdb=build_opts)
 excons.AddHelpTargets(eco="Ecosystem distribution")
