@@ -33,8 +33,8 @@
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBVisualizeNode.h"
-#include <openvdb_maya/OpenVDBData.h>
-#include <openvdb_maya/OpenVDBUtil.h>
+#include "OpenVDBUtil.h"
+#include "OpenVDBData.h"
 
 #include <openvdb/io/Stream.h>
 
@@ -78,6 +78,9 @@ MObject OpenVDBVisualizeNode::aCachedSurface;
 
 MTypeId OpenVDBVisualizeNode::id(0x00108A53);
 
+#ifdef _WIN32
+bool OpenVDBVisualizeNode::msGLEWInitialized = false;
+#endif
 
 ////////////////////////////////////////
 
@@ -470,6 +473,14 @@ void
 OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         M3dView::DisplayStyle /*style*/, M3dView::DisplayStatus status)
 {
+#ifdef _WIN32
+    if (!msGLEWInitialized)
+    {
+        glewInit();
+        msGLEWInitialized = true;
+    }
+#endif
+
     MObject thisNode = thisMObject();
 
     const bool isSelected = (status == M3dView::kActive) || (status == M3dView::kLead);

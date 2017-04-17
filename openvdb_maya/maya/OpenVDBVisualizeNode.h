@@ -34,10 +34,13 @@
 #ifndef OPENVDB_MAYA_VISUALIZE_NODE_HAS_BEEN_INCLUDED
 #define OPENVDB_MAYA_VISUALIZE_NODE_HAS_BEEN_INCLUDED
 
+#include "OpenVDBUtil.h"
+
 #include <maya/MPxLocatorNode.h>
 #include <maya/MTypeId.h>
+
 #include <vector>
-#include <openvdb_maya/OpenVDBUtil.h>
+
 
 class OpenVDBVisualizeNode : public MPxLocatorNode
 {
@@ -89,6 +92,9 @@ private:
 
     openvdb_maya::ShaderProgram mSurfaceShader, mPointShader;
     MBoundingBox mBBox;
+#ifdef _WIN32
+    static bool msGLEWInitialized;
+#endif
 };
 
 #endif // OPENVDB_MAYA_VISUALIZE_NODE_HAS_BEEN_INCLUDED

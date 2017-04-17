@@ -34,6 +34,17 @@
 #ifndef OPENVDB_MAYA_UTIL_HAS_BEEN_INCLUDED
 #define OPENVDB_MAYA_UTIL_HAS_BEEN_INCLUDED
 
+#ifdef _WIN32
+#include <GL/glew.h>
+#endif
+#if defined(__APPLE__) || defined(MACOSX)
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#else
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
+
 #include "OpenVDBData.h"
 
 #include <openvdb/openvdb.h>
@@ -50,19 +61,6 @@
 #include <maya/MDataHandle.h>
 #include <maya/MFnPluginData.h>
 #include <maya/MTime.h>
-
-#if defined(__APPLE__) || defined(MACOSX)
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#endif
-
-// Visual Studio 2015 OpenGL headers do not defined GLchar
-#if _MSC_VER >= 1900
-typedef signed char GLchar;
-#endif 
 
 #include <iostream>
 #include <sstream>
@@ -153,9 +151,16 @@ struct Timer
     double seconds() const { return (tbb::tick_count::now() - mStamp).seconds(); }
 
     std::string elapsedTime() const {
+        char buffer[1024];
         double sec = seconds();
-        return sec < 1.0 ? boost::lexical_cast<std::string>(sec * 1000.0) + " ms" :
-             boost::lexical_cast<std::string>(sec) + " s";
+        //return sec < 1.0 ? boost::lexical_cast<std::string>(sec * 1000.0) + " ms" :
+        //     boost::lexical_cast<std::string>(sec) + " s";
+        if (sec < 1.0) {
+            sprintf(buffer, "%lf ms", sec * 1000.0);
+        } else {
+            sprintf(buffer, "%lf s", sec);
+        }
+        return buffer;
     }
 
 private:

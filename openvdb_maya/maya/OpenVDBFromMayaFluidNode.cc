@@ -31,8 +31,8 @@
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBFromMayaFluidNode.h"
-#include <openvdb_maya/OpenVDBUtil.h>
-#include <openvdb_maya/OpenVDBData.h>
+#include "OpenVDBUtil.h"
+#include "OpenVDBData.h"
 
 #include <openvdb/tools/Dense.h>
 #include <openvdb/math/Transform.h>

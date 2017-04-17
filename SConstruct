@@ -8,17 +8,16 @@ import excons.tools.python as python
 import excons.tools.gl as gl
 import excons.tools.threads as threads
 
-env = excons.MakeBaseEnv()
-
+ARGUMENTS["use-c++11"] = "1"
 if sys.platform == "win32":
   # Require mscver 14.0 at least
-  mscver = float(excons.GetArgument("mscver", "14.0"))
+  mscver = float(ARGUMENTS.get("mscver", "14.0"))
   if mscver < 14.0:
     print("vc14.0 at least required on windows for C++11 proper support.")
     sys.exit(1)
-  excons.SetArgument("mscver", str(mscver))
-else:
-  excons.SetArgument("use-c++11", 1)
+  ARGUMENTS["mscver"] = str(mscver)
+
+env = excons.MakeBaseEnv()
 
 abi3 = (excons.GetArgument("openvdb-abi3", 0, int) != 0)
 
@@ -61,20 +60,26 @@ def halfRequire(env):
 def openexrRequire(env):
   RequireIlmImf(env, static=True)
 
+# GLEW (windows only)
+glew_incdirs = []
+glew_defs = []
+glew_srcs = []
+if sys.platform == "win32":
+  glew_incdirs = ["ext/glew-2.0.0/include"]
+  glew_defs = ["GLEW_STATIC"]
+  glew_srcs = ["ext/glew-2.0.0/src/glew.c"]
+
 
 
 cppflags = ""
 
-defs = ([] if not abi3 else ["OPENVDB_3_ABI_COMPATIBLE"])
+defs = ["OPENVDB_OPENEXR_STATICLIB"] + ([] if not abi3 else ["OPENVDB_3_ABI_COMPATIBLE"])
 if sys.platform == "win32":
   defs.append("NOMINMAX")
-  lib_defs = defs + ["HALF_EXPORTS"]
   # 4146: unary minus operator applied to unsigned type
   # 4800: forcing value to bool 'true' or 'false'
   cppflags += " /wd4800 /wd4146"
-else:
-  lib_defs = defs
-lib_defs.extend(["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"])
+lib_defs = defs + ["OPENVDB_PRIVATE", "OPENVDB_USE_BLOSC"]
 
 boost_libs = ["iostreams", "system"]
 
@@ -155,10 +160,10 @@ projs = [
     "rpaths": "../../../lib",
     "bldprefix": maya.Version(),
     "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
-    "defs": lib_defs + ["OPENVDB_STATICLIB", "GL_GLEXT_PROTOTYPES=1"],
+    "defs": lib_defs + ["OPENVDB_STATICLIB"] + glew_defs,
     "cppflags": cppflags,
-    "incdirs": [".", "openvdb"],
-    "srcs": excons.glob("openvdb_maya/maya/*.cc"),
+    "incdirs": [".", "openvdb"] + glew_incdirs,
+    "srcs": excons.glob("openvdb_maya/maya/*.cc") + glew_srcs,
     "deps": ["blosc_s"],
     "staticlibs": ["openvdb_s"],
     "custom": [maya.Require,
@@ -206,11 +211,12 @@ projs = [
     "desc": "OpenVDB command line tool",
     "alias": "openvdb-tools",
     "symvis": "default",
-    "incdirs": [".", "openvdb"],
-    "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3", "GL_GLEXT_PROTOTYPES=1"],
+    "incdirs": [".", "openvdb"] + glew_incdirs,
+    "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3"] + glew_defs,
     "cppflags": cppflags,
     "srcs": excons.glob("openvdb/cmd/openvdb_view/*.cc") +
-            excons.glob("openvdb/viewer/*.cc"),
+            excons.glob("openvdb/viewer/*.cc") +
+            glew_srcs,
     "staticlibs": ["openvdb_s"],
     "custom": [glfwRequire, boost.Require(libs=["thread"])] + lib_requires,
     "install": {"include/openvdb_viewer": excons.glob("openvdb/viewer/*.h")}

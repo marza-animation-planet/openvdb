@@ -35,7 +35,6 @@
 #ifndef OPENVDB_MAYA_DATA_HAS_BEEN_INCLUDED
 #define OPENVDB_MAYA_DATA_HAS_BEEN_INCLUDED
 
-
 #include <openvdb/Platform.h>
 #include <openvdb/openvdb.h>
 

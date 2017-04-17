@@ -31,8 +31,8 @@
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBWriteNode.h"
-#include <openvdb_maya/OpenVDBData.h>
-#include <openvdb_maya/OpenVDBUtil.h>
+#include "OpenVDBUtil.h"
+#include "OpenVDBData.h"
 
 #include <openvdb/io/Stream.h>
 #include <openvdb/math/Math.h>

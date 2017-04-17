@@ -463,6 +463,9 @@ ViewerImpl::init(const std::string& progName)
             OPENVDB_LOG_DEBUG_RUNTIME("initialized GLFW from thread "
                 << boost::this_thread::get_id());
             mDidInit = true;
+#ifdef _WIN32
+            glewInit();
+#endif
         } else {
             OPENVDB_LOG_ERROR("GLFW initialization failed");
         }

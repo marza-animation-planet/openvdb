@@ -33,6 +33,7 @@
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBUtil.h"
+
 #include <openvdb/math/Math.h>
 
 #include <maya/MGlobal.h>

@@ -31,8 +31,8 @@
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBCopyNode.h"
-#include <openvdb_maya/OpenVDBData.h>
-#include <openvdb_maya/OpenVDBUtil.h>
+#include "OpenVDBUtil.h"
+#include "OpenVDBData.h"
 
 #include <maya/MFnTypedAttribute.h>
 #include <maya/MFnStringData.h>
