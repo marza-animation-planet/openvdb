@@ -92,6 +92,7 @@ private:
 
     openvdb_maya::ShaderProgram mSurfaceShader, mPointShader;
     MBoundingBox mBBox;
+    bool mShaderInitialized;
 };
 
 #endif // OPENVDB_MAYA_VISUALIZE_NODE_HAS_BEEN_INCLUDED

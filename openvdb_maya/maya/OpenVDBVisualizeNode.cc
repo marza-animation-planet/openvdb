@@ -82,58 +82,8 @@ MTypeId OpenVDBVisualizeNode::id(0x00108A53);
 
 
 OpenVDBVisualizeNode::OpenVDBVisualizeNode()
+    : mShaderInitialized(false)
 {
-    static bool sInitGLEW = true;
-
-    if (sInitGLEW) {
-        glewInit();
-        sInitGLEW = false;
-    }
-
-    mSurfaceShader.setVertShader(
-        "#version 120\n"
-        "varying vec3 normal;\n"
-        "void main() {\n"
-            "normal = normalize(gl_NormalMatrix * gl_Normal);\n"
-            "gl_Position =  ftransform();\n"
-            "gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n"
-        "}\n");
-
-    mSurfaceShader.setFragShader(
-        "#version 120\n"
-        "varying vec3 normal;\n"
-        "const vec4 skyColor = vec4(0.9, 0.9, 1.0, 1.0);\n"
-        "const vec4 groundColor = vec4(0.3, 0.3, 0.2, 1.0);\n"
-        "void main() {\n"
-            "vec3 normalized_normal = normalize(normal);\n"
-            "float w = 0.5 * (1.0 + dot(normalized_normal, vec3(0.0, 1.0, 0.0)));\n"
-            "vec4 diffuseColor = w * skyColor + (1.0 - w) * groundColor;\n"
-            "gl_FragColor = diffuseColor;\n"
-        "}\n");
-
-    mSurfaceShader.build();
-
-    mPointShader.setVertShader(
-        "#version 120\n"
-        "varying vec3 normal;\n"
-        "void main() {\n"
-            "gl_FrontColor = gl_Color;\n"
-            "normal = normalize(gl_NormalMatrix * gl_Normal);\n"
-            "gl_Position =  ftransform();\n"
-            "gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n"
-        "}\n");
-
-    mPointShader.setFragShader(
-        "#version 120\n"
-        "varying vec3 normal;\n"
-        "void main() {\n"
-            "vec3 normalized_normal = normalize(normal);\n"
-            "float w = 0.5 * (1.0 + dot(normalized_normal, vec3(0.0, 1.0, 0.0)));\n"
-            "vec4 diffuseColor = w * gl_Color + (1.0 - w) * (gl_Color * 0.3);\n"
-            "gl_FragColor = diffuseColor;\n"
-        "}\n");
-
-    mPointShader.build();
 }
 
 OpenVDBVisualizeNode::~OpenVDBVisualizeNode()
@@ -476,7 +426,63 @@ void
 OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         M3dView::DisplayStyle /*style*/, M3dView::DisplayStatus status)
 {
+    static bool sInitGLEW = true;
+
+    if (sInitGLEW) {
+        glewInit();
+        sInitGLEW = false;
+    }
+
     MObject thisNode = thisMObject();
+
+    if (!mShaderInitialized) {
+        mSurfaceShader.setVertShader(
+            "#version 120\n"
+            "varying vec3 normal;\n"
+            "void main() {\n"
+                "normal = normalize(gl_NormalMatrix * gl_Normal);\n"
+                "gl_Position =  ftransform();\n"
+                "gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n"
+            "}\n");
+
+        mSurfaceShader.setFragShader(
+            "#version 120\n"
+            "varying vec3 normal;\n"
+            "const vec4 skyColor = vec4(0.9, 0.9, 1.0, 1.0);\n"
+            "const vec4 groundColor = vec4(0.3, 0.3, 0.2, 1.0);\n"
+            "void main() {\n"
+                "vec3 normalized_normal = normalize(normal);\n"
+                "float w = 0.5 * (1.0 + dot(normalized_normal, vec3(0.0, 1.0, 0.0)));\n"
+                "vec4 diffuseColor = w * skyColor + (1.0 - w) * groundColor;\n"
+                "gl_FragColor = diffuseColor;\n"
+            "}\n");
+
+        mSurfaceShader.build();
+
+        mPointShader.setVertShader(
+            "#version 120\n"
+            "varying vec3 normal;\n"
+            "void main() {\n"
+                "gl_FrontColor = gl_Color;\n"
+                "normal = normalize(gl_NormalMatrix * gl_Normal);\n"
+                "gl_Position =  ftransform();\n"
+                "gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;\n"
+            "}\n");
+
+        mPointShader.setFragShader(
+            "#version 120\n"
+            "varying vec3 normal;\n"
+            "void main() {\n"
+                "vec3 normalized_normal = normalize(normal);\n"
+                "float w = 0.5 * (1.0 + dot(normalized_normal, vec3(0.0, 1.0, 0.0)));\n"
+                "vec4 diffuseColor = w * gl_Color + (1.0 - w) * (gl_Color * 0.3);\n"
+                "gl_FragColor = diffuseColor;\n"
+            "}\n");
+
+        mPointShader.build();
+
+        mShaderInitialized = true;
+    }
 
     const bool isSelected = (status == M3dView::kActive) || (status == M3dView::kLead);
 
