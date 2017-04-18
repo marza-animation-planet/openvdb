@@ -219,6 +219,19 @@ projs = [
     "staticlibs": ["openvdb_s"],
     "custom": [glfwRequire, boost.Require(libs=["thread"])] + lib_requires,
     "install": {"include/openvdb_viewer": excons.glob("openvdb/viewer/*.h")}
+  },
+  {
+    "name": "vdb_lod",
+    "type": "program",
+    "desc": "OpenVDB command line tool",
+    "alias": "openvdb-tools",
+    "symvis": "default",
+    "incdirs": [".", "openvdb"],
+    "defs": defs + ["OPENVDB_STATICLIB"],
+    "cppflags": cppflags + (" -Wno-unused-variable" if sys.platform != "win32" else ""),
+    "srcs": excons.glob("openvdb/cmd/openvdb_lod/*.cc"),
+    "staticlibs": ["openvdb_s"],
+    "custom": lib_requires
   }
 ]
 
