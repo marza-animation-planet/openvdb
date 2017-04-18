@@ -155,6 +155,7 @@ projs = [
     "desc": "OpenVDB Maya plugins",
     "alias": "openvdb-maya",
     "symvis": "default",
+    "ext": maya.PluginExt(),
     "rpaths": "../../../lib",
     "bldprefix": maya.Version(),
     "prefix": "maya/%s/plug-ins" % maya.Version(nice=True),
@@ -168,7 +169,8 @@ projs = [
                boost.Require(libs=boost_libs),
                halfRequire,
                bloscRequire,
-               RequireTBB],
+               RequireTBB,
+               gl.Require],
     "install": {"maya/scripts": excons.glob("openvdb_maya/maya/*.mel"),
                 "include/openvdb_maya": ["openvdb_maya/maya/OpenVDBData.h",
                                          "openvdb_maya/maya/OpenVDBUtil.h"]}
