@@ -38,6 +38,7 @@
 #   pytest              unit tests for the Python module
 #   pydoc               HTML documentation for the Python module
 #                       (doc/html/python/index.html)
+#   vdb_lod             command-line tool to generate volume mipmaps
 #   vdb_print           command-line tool to inspect OpenVDB files
 #   vdb_render          command-line tool to ray-trace OpenVDB files
 #   vdb_view            command-line tool to view OpenVDB files
@@ -45,6 +46,8 @@
 #
 #   all                 [default target] all of the above
 #   install             install all of the above except vdb_test
+#                       into subdirectories of DESTDIR
+#   install_lib         install just the OpenVDB library and its headers
 #                       into subdirectories of DESTDIR
 #   depend              recompute source file header dependencies
 #   clean               delete generated files from the local directory
@@ -73,9 +76,9 @@
 #
 # To build the OpenVDB Python module, you will need local distributions of
 # Python, Boost.Python, and optionally NumPy.  As of Houdini 12.5, the HDK
-# includes versions 2.5 and 2.6 of Python as well as the Boost.Python headers.
-# Unfortunately, it does not include the libboost_python library, nor does it
-# include NumPy, so both Boost.Python and NumPy have to be built separately.
+# includes Python 2.x as well as the Boost.Python headers.  Unfortunately,
+# it does not include the libboost_python library, nor does it include NumPy,
+# so both Boost.Python and NumPy have to be built separately.
 # Point the variables $(BOOST_PYTHON_LIB_DIR), $(BOOST_PYTHON_LIB) and
 # $(NUMPY_INCL_DIR) below to your local distributions of those libraries.
 #
@@ -150,7 +153,7 @@ GLFW_MAJOR_VERSION := 3
 
 # The version of Python for which to build the OpenVDB module
 # (leave blank if Python is unavailable)
-PYTHON_VERSION := 2.6
+PYTHON_VERSION := 2.7
 # The directory containing Python.h
 PYTHON_INCL_DIR := $(HFS)/python/include/python$(PYTHON_VERSION)
 # The directory containing pyconfig.h
@@ -159,11 +162,11 @@ PYCONFIG_INCL_DIR := $(PYTHON_INCL_DIR)
 PYTHON_LIB_DIR := $(HFS)/python/lib
 PYTHON_LIB := -lpython$(PYTHON_VERSION)
 # The directory containing libboost_python
-BOOST_PYTHON_LIB_DIR := /rel/depot/third_party_build/boost/rhel6-1.46.1-0/lib
-BOOST_PYTHON_LIB := -lboost_python-gcc41-mt-python26-1_46_1
+BOOST_PYTHON_LIB_DIR := /rel/config/studio/baseline/boost/1.55.0.0/gcc-4.8.1.0/python-2.7.10.0/ext/lib/
+BOOST_PYTHON_LIB := -lboost_python-mt
 # The directory containing arrayobject.h
 # (leave blank if NumPy is unavailable)
-NUMPY_INCL_DIR := /rel/map/generic-2013.22/include
+NUMPY_INCL_DIR := /rel/lang/python/2.7.9-1/lib/python2.7/site-packages/numpy/core/include/numpy/
 # The Epydoc executable
 # (leave blank if Epydoc is unavailable)
 EPYDOC := /rel/map/generic_default-2014.24.237/bin/epydoc
@@ -691,6 +694,7 @@ list_deps = $(if $(wordlist 4,5,$(?F)),$(firstword $(?F)) and others,$(wordlist 
 ALL_PRODUCTS := \
     $(LIBOPENVDB) \
     vdb_test \
+    vdb_lod \
     vdb_print \
     vdb_render \
     vdb_view \
@@ -708,7 +712,7 @@ ALL_PRODUCTS := \
 	@echo "Building $@ because of $(call list_deps)"
 	$(CXX) -c $(CXXFLAGS) -fPIC -o $@ $<
 
-all: lib python vdb_print vdb_render vdb_test depend
+all: lib python vdb_lod vdb_print vdb_render vdb_test depend
 
 $(OBJ_NAMES): %.o: %.cc
 	@echo "Building $@ because of $(call list_deps)"
@@ -762,6 +766,12 @@ pdfdoc:
 	@echo "$@"': $$DOXYGEN is undefined'
 endif
 
+vdb_lod: $(LIBOPENVDB) cmd/openvdb_lod/main.cc
+	@echo "Building $@ because of $(list_deps)"
+	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_lod/main.cc -I . \
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
+
 vdb_print: $(LIBOPENVDB) cmd/openvdb_print/main.cc
 	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_print/main.cc -I . \
@@ -796,9 +806,9 @@ $(LIBVIEWER_OBJ_NAMES): %.o: %.cc
 vdb_view: $(LIBOPENVDB) $(LIBVIEWER_OBJ_NAMES) cmd/openvdb_view/main.cc
 	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_view/main.cc $(LIBVIEWER_OBJ_NAMES) \
-	    -I . -Wl,-rpath,$(GLFW_LIB_DIR) -L$(GLFW_LIB_DIR) $(GLFW_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
-	    $(LIBVIEWER_FLAGS) $(LIBS_RPATH) $(BOOST_THREAD_LIB) $(CONCURRENT_MALLOC_LIB)
+	    -I . $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBVIEWER_FLAGS) $(LIBS_RPATH) $(BOOST_THREAD_LIB) $(CONCURRENT_MALLOC_LIB) \
+	    -Wl,-rpath,$(GLFW_LIB_DIR) -L$(GLFW_LIB_DIR) $(GLFW_LIB)
 endif
 
 
@@ -851,9 +861,9 @@ ifneq (,$(strip $(CPPUNIT_INCL_DIR)))
 vdb_test: $(LIBOPENVDB) $(UNITTEST_OBJ_NAMES)
 	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ $(UNITTEST_OBJ_NAMES) \
-	    -Wl,-rpath,$(CPPUNIT_LIB_DIR) -L$(CPPUNIT_LIB_DIR) $(CPPUNIT_LIB) \
 	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
-	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
+	    -Wl,-rpath,$(CPPUNIT_LIB_DIR) -L$(CPPUNIT_LIB_DIR) $(CPPUNIT_LIB)
 
 test: lib vdb_test
 	@echo "Testing $(LIBOPENVDB_NAME)"
@@ -865,20 +875,13 @@ test:
 	@echo "$@"': $$(CPPUNIT_INCL_DIR) is undefined'
 endif
 
-install: lib python vdb_print vdb_render vdb_view doc pydoc
+install_lib: lib
 	mkdir -p $(DESTDIR)/include/openvdb
 	@echo "Created $(DESTDIR)/include/openvdb"
 	pushd $(DESTDIR)/include/openvdb > /dev/null; \
 	    mkdir -p $(HEADER_SUBDIRS); popd > /dev/null
 	for f in $(INCLUDE_NAMES); \
 	    do cp -f $$f $(DESTDIR)/include/openvdb/$$f; done
-	@#
-	if [ -f $(LIBVIEWER) ]; \
-	then \
-	    mkdir -p $(DESTDIR)/include/openvdb_viewer; \
-	    echo "Created $(DESTDIR)/include/openvdb_viewer"; \
-	    cp -f $(LIBVIEWER_PUBLIC_INCLUDE_NAMES) $(DESTDIR)/include/openvdb_viewer/; \
-	fi
 	@echo "Copied header files to $(DESTDIR)/include"
 	@#
 	mkdir -p $(DESTDIR)/lib
@@ -891,15 +894,20 @@ install: lib python vdb_print vdb_render vdb_view doc pydoc
 	    fi; \
 	    popd > /dev/null
 	@echo "Copied libopenvdb to $(DESTDIR)/lib/"
-	@#
+
+install: install_lib python vdb_lod vdb_print vdb_render vdb_view doc pydoc
 	if [ -f $(LIBVIEWER) ]; \
 	then \
+	    mkdir -p $(DESTDIR)/include/openvdb_viewer; \
+	    echo "Created $(DESTDIR)/include/openvdb_viewer"; \
+	    cp -f $(LIBVIEWER_PUBLIC_INCLUDE_NAMES) $(DESTDIR)/include/openvdb_viewer/; \
+	    @echo "Copied vdb_view header files to $(DESTDIR)/include" \
 	    cp -f $(LIBVIEWER) $(DESTDIR)/lib; \
 	    pushd $(DESTDIR)/lib > /dev/null; \
 	        if [ -f $(LIBVIEWER_SHARED) ]; then \
 	            ln -f -s $(LIBVIEWER_SHARED) $(LIBVIEWER_SHARED_NAME); fi; \
 	        popd > /dev/null; \
-	    echo "Copied libopenvdb_viewer to $(DESTDIR)/lib/"; \
+	    @echo "Copied libopenvdb_viewer to $(DESTDIR)/lib/"; \
 	fi
 	@#
 	if [ -f $(PYTHON_MODULE) ]; \
@@ -921,6 +929,8 @@ install: lib python vdb_print vdb_render vdb_view doc pydoc
 	@#
 	mkdir -p $(DESTDIR)/bin
 	@echo "Created $(DESTDIR)/bin/"
+	cp -f vdb_lod $(DESTDIR)/bin
+	@echo "Copied vdb_lod to $(DESTDIR)/bin/"
 	cp -f vdb_print $(DESTDIR)/bin
 	@echo "Copied vdb_print to $(DESTDIR)/bin/"
 	cp -f vdb_render $(DESTDIR)/bin
