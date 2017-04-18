@@ -13,3 +13,6 @@
 [submodule "openexr"]
 	path = openexr
 	url = git://github.com/gatgui/openexr
+[submodule "tbb"]
+	path = tbb
+	url = git://github.com/gatgui/tbb

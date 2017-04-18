@@ -3,7 +3,6 @@ import sys
 import excons
 import excons.tools.maya as maya
 import excons.tools.boost as boost
-import excons.tools.tbb as tbb
 import excons.tools.python as python
 import excons.tools.gl as gl
 import excons.tools.threads as threads
@@ -60,6 +59,9 @@ def halfRequire(env):
 def openexrRequire(env):
   RequireIlmImf(env, static=True)
 
+# TBB (always build from sources)
+excons.Call("tbb", overrides={"tbb-static": 1}, imp=["RequireTBB"])
+
 # GLEW (always include sources)
 glew_incdirs = ["ext/glew-2.0.0/include"]
 glew_defs = ["GLEW_STATIC"]
@@ -89,7 +91,7 @@ lib_requires = [boost.Require(libs=boost_libs),
                 halfRequire,
                 bloscRequire,
                 zlibRequire, # openvdb uses zlib directly too
-                tbb.Require]
+                RequireTBB]
 
 include_basedir = "%s/include/openvdb" % excons.OutputBaseDirectory()
 InstallHeaders  = env.Install(include_basedir, excons.glob("openvdb/*.h"))
@@ -145,7 +147,7 @@ projs = [
                boost.Require(libs=boost_libs + ["python"]),
                halfRequire,
                bloscRequire,
-               tbb.Require]
+               RequireTBB]
   },
   {
     "name": "OpenVDBMaya",
@@ -166,8 +168,7 @@ projs = [
                boost.Require(libs=boost_libs),
                halfRequire,
                bloscRequire,
-               tbb.Require,
-               gl.Require],
+               RequireTBB],
     "install": {"maya/scripts": excons.glob("openvdb_maya/maya/*.mel"),
                 "include/openvdb_maya": ["openvdb_maya/maya/OpenVDBData.h",
                                          "openvdb_maya/maya/OpenVDBUtil.h"]}
@@ -199,7 +200,7 @@ projs = [
     "custom": [boost.Require(libs=boost_libs),
                openexrRequire,
                bloscRequire,
-               tbb.Require]
+               RequireTBB]
   },
   {
     "name": "vdb_view",
