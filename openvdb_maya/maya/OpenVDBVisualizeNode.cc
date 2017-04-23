@@ -320,6 +320,48 @@ MStatus OpenVDBVisualizeNode::compute(const MPlug& plug, MDataBlock& data)
     std::vector<openvdb::GridBase::ConstPtr> grids;
     mvdb::getGrids(grids, *inputVdb, names);
 
+    if (plug == aCachedBBox) {
+        // Avoid GL related operations here
+        const size_t N = 8 * 3;
+        std::vector<GLuint> indices(N);
+        std::vector<GLfloat> points(N);
+        std::vector<GLfloat> colors(N);
+        openvdb::Vec3s bMin, bMax;
+
+        bMin[0] = std::numeric_limits<float>::max();
+        bMin[1] = bMin[0];
+        bMin[2] = bMin[0];
+        bMax[0] = -bMin[0];
+        bMax[1] = -bMin[0];
+        bMax[2] = -bMin[0];
+
+        for (size_t n = 0, N = grids.size(); n < N; ++n) {
+            mvdb::WireBoxBuilder boxBuilder(grids[n]->constTransform(), indices, points, colors);
+
+            boxBuilder.add(0, grids[n]->evalActiveVoxelBoundingBox(), openvdb::Vec3s(0.045f, 0.045f, 0.045f));
+
+            for (int i = 0; i < 8; ++i) {
+                int p = i * 3;
+                bMin[0] = std::min(bMin[0], points[p]);
+                bMin[1] = std::min(bMin[1], points[p+1]);
+                bMin[2] = std::min(bMin[2], points[p+2]);
+
+                bMax[0] = std::max(bMax[0], points[p]);
+                bMax[1] = std::max(bMax[1], points[p+1]);
+                bMax[2] = std::max(bMax[2], points[p+2]);
+            }
+        }
+
+        MPoint pMin(bMin[0], bMin[1], bMin[2]);
+        MPoint pMax(bMax[0], bMax[1], bMax[2]);
+        mBBox = MBoundingBox(pMin, pMax);
+
+        MDataHandle outHandle = data.outputValue(aCachedBBox);
+        outHandle.set(true);
+
+        return data.setClean(plug);
+    }
+
     if (grids.empty()) {
         mBBoxBuffers.clear();
         mNodeBuffers.clear();
@@ -355,6 +397,7 @@ MStatus OpenVDBVisualizeNode::compute(const MPlug& plug, MDataBlock& data)
         MDataHandle outHandle = data.outputValue(aCachedLeafNodes);
         outHandle.set(true);
 
+    /*
     } else if (plug == aCachedBBox) {
         MPoint pMin, pMax;
 
@@ -374,6 +417,7 @@ MStatus OpenVDBVisualizeNode::compute(const MPlug& plug, MDataBlock& data)
 
         MDataHandle outHandle = data.outputValue(aCachedBBox);
         outHandle.set(true);
+    */
 
     } else if (plug == aCachedActiveTiles) {
         mTileBuffers.clear();
@@ -428,14 +472,15 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
 {
     static bool sInitGLEW = true;
 
+    view.beginGL();
+
     if (sInitGLEW) {
         glewInit();
         sInitGLEW = false;
     }
 
-    MObject thisNode = thisMObject();
-
     if (!mShaderInitialized) {
+        /*
         mSurfaceShader.setVertShader(
             "#version 120\n"
             "varying vec3 normal;\n"
@@ -480,9 +525,11 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
             "}\n");
 
         mPointShader.build();
-
+        */
         mShaderInitialized = true;
     }
+
+    MObject thisNode = thisMObject();
 
     const bool isSelected = (status == M3dView::kActive) || (status == M3dView::kLead);
 
@@ -493,14 +540,12 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
     const bool voxels           = MPlug(thisNode, aVisualizeActiveVoxels).asBool();
     const bool surface          = MPlug(thisNode, aVisualizeSurface).asBool();
 
-    view.beginGL();
-
     if (surface && MPlug(thisNode, aCachedSurface).asBool()) {
-        if (!view.selectMode()) mSurfaceShader.startShading();
+        //if (!view.selectMode()) mSurfaceShader.startShading();
         for (size_t n = 0, N = mSurfaceBuffers.size(); n < N; ++n) {
             mSurfaceBuffers[n].render();
         }
-        mSurfaceShader.stopShading();
+        //mSurfaceShader.stopShading();
     }
 
     if (tiles && MPlug(thisNode, aCachedActiveTiles).asBool()) {
@@ -516,11 +561,11 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
     }
 
     if (voxels && MPlug(thisNode, aCachedActiveVoxels).asBool()) {
-        if (!view.selectMode()) mPointShader.startShading();
+        //if (!view.selectMode()) mPointShader.startShading();
         for (size_t n = 0, N = mPointBuffers.size(); n < N; ++n) {
             mPointBuffers[n].render();
         }
-        mPointShader.stopShading();
+        //mPointShader.stopShading();
     }
 
     if (!view.selectMode()) {
@@ -533,6 +578,23 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         }
 
         if ((isSelected || bbox) && MPlug(thisNode, aCachedBBox).asBool()) {
+
+            // check if Box buffers have been initialized
+            if (mBBoxBuffers.size() == 0 && mLeafBuffers.size() > 0) {
+                std::vector<openvdb::GridBase::ConstPtr> grids;
+                MDataBlock data = forceCache();
+                const OpenVDBData* inputVdb = mvdb::getInputVDB(aVdbInput, data);
+
+                if (inputVdb) {
+                    std::string names = MPlug(thisNode, aVdbSelectedGridNames).asString().asChar();
+                    mvdb::getGrids(grids, *inputVdb, names);
+                    mBBoxBuffers.resize(grids.size());
+                    for (size_t n = 0, N = grids.size(); n < N; ++n) {
+                        mvdb::BoundingBoxGeo drawBBox(mBBoxBuffers[n]);
+                        drawBBox(grids[n]);
+                    }
+                }
+            }
 
             if (isSelected) glColor3f(0.9f, 0.9f, 0.3f);
             else glColor3f(0.045f, 0.045f, 0.045f);
