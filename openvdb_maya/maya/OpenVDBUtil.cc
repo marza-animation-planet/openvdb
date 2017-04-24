@@ -275,17 +275,27 @@ BufferObject::BufferObject():
     mIndexBuffer(0),
     mColorBuffer(0),
     mPrimType(GL_POINTS),
-    mPrimNum(0)
+    mPrimNum(0),
+    mError("")
 {
 }
 
 BufferObject::~BufferObject() { clear(); }
 
+bool BufferObject::isValid() const {
+    if (mPrimNum == 0 || mIndexBuffer == 0 || mVertexBuffer == 0 || !glIsBuffer(mIndexBuffer) || !glIsBuffer(mVertexBuffer)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 void
 BufferObject::render() const
 {
-    if (mPrimNum == 0 || !glIsBuffer(mIndexBuffer) || !glIsBuffer(mVertexBuffer)) {
-        OPENVDB_LOG_DEBUG_RUNTIME("request to render empty or uninitialized buffer");
+    if (!isValid()) {
+        // "request to render empty or uninitialized buffer"
+        OPENVDB_LOG_DEBUG_RUNTIME(mError.c_str());
         return;
     }
 
@@ -312,8 +322,12 @@ BufferObject::render() const
     glDrawElements(mPrimType, mPrimNum, GL_UNSIGNED_INT, 0);
 
     // disable client-side capabilities
-    if (usesColorBuffer) glDisableClientState(GL_COLOR_ARRAY);
-    if (usesNormalBuffer) glDisableClientState(GL_NORMAL_ARRAY);
+    if (usesColorBuffer) {
+        glDisableClientState(GL_COLOR_ARRAY);
+    }
+    if (usesNormalBuffer) {
+        glDisableClientState(GL_NORMAL_ARRAY);
+    }
 
     // release vbo's
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -324,17 +338,33 @@ void
 BufferObject::genIndexBuffer(const std::vector<GLuint>& v, GLenum primType)
 {
     // clear old buffer
-    if (glIsBuffer(mIndexBuffer) == GL_TRUE) glDeleteBuffers(1, &mIndexBuffer);
+    if (mIndexBuffer != 0 && glIsBuffer(mIndexBuffer) == GL_TRUE) {
+        glDeleteBuffers(1, &mIndexBuffer);
+    }
 
     // gen new buffer
     glGenBuffers(1, &mIndexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
-    if (glIsBuffer(mIndexBuffer) == GL_FALSE) throw "Error: Unable to create index buffer";
+    if (glIsBuffer(mIndexBuffer) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create index buffer";
+        mIndexBuffer = 0;
+        return;
+    }
 
     // upload data
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-        sizeof(GLuint) * v.size(), &v[0], GL_STATIC_DRAW); // upload data
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to upload index buffer data";
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * v.size(), &v[0], GL_STATIC_DRAW); // upload data
+    if (GL_NO_ERROR != glGetError()) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to upload index buffer data";
+        glDeleteBuffers(1, &mIndexBuffer);
+        mIndexBuffer = 0;
+        return;
+    }
 
     // release buffer
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -346,14 +376,31 @@ BufferObject::genIndexBuffer(const std::vector<GLuint>& v, GLenum primType)
 void
 BufferObject::genVertexBuffer(const std::vector<GLfloat>& v)
 {
-    if (glIsBuffer(mVertexBuffer) == GL_TRUE) glDeleteBuffers(1, &mVertexBuffer);
+    if (mVertexBuffer != 0 && glIsBuffer(mVertexBuffer) == GL_TRUE) {
+        glDeleteBuffers(1, &mVertexBuffer);
+    }
 
     glGenBuffers(1, &mVertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
-    if (glIsBuffer(mVertexBuffer) == GL_FALSE) throw "Error: Unable to create vertex buffer";
+    if (glIsBuffer(mVertexBuffer) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create vertex buffer";
+        mVertexBuffer = 0;
+        return;
+    }
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * v.size(), &v[0], GL_STATIC_DRAW);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to upload vertex buffer data";
+    if (GL_NO_ERROR != glGetError()) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to upload vertex buffer data";
+        glDeleteBuffers(1, &mVertexBuffer);
+        mVertexBuffer = 0;
+        return;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -361,14 +408,31 @@ BufferObject::genVertexBuffer(const std::vector<GLfloat>& v)
 void
 BufferObject::genNormalBuffer(const std::vector<GLfloat>& v)
 {
-    if (glIsBuffer(mNormalBuffer) == GL_TRUE) glDeleteBuffers(1, &mNormalBuffer);
+    if (mNormalBuffer != 0 && glIsBuffer(mNormalBuffer) == GL_TRUE) {
+        glDeleteBuffers(1, &mNormalBuffer);
+    }
 
     glGenBuffers(1, &mNormalBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, mNormalBuffer);
-    if (glIsBuffer(mNormalBuffer) == GL_FALSE) throw "Error: Unable to create normal buffer";
+    if (glIsBuffer(mNormalBuffer) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create normal buffer";
+        mNormalBuffer = 0;
+        return;
+    }
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * v.size(), &v[0], GL_STATIC_DRAW);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to upload normal buffer data";
+    if (GL_NO_ERROR != glGetError()) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to upload normal buffer data";
+        glDeleteBuffers(1, &mNormalBuffer);
+        mNormalBuffer = 0;
+        return;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -376,14 +440,31 @@ BufferObject::genNormalBuffer(const std::vector<GLfloat>& v)
 void
 BufferObject::genColorBuffer(const std::vector<GLfloat>& v)
 {
-    if (glIsBuffer(mColorBuffer) == GL_TRUE) glDeleteBuffers(1, &mColorBuffer);
+    if (mColorBuffer != 0 && glIsBuffer(mColorBuffer) == GL_TRUE) {
+        glDeleteBuffers(1, &mColorBuffer);
+    }
 
     glGenBuffers(1, &mColorBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, mColorBuffer);
-    if (glIsBuffer(mColorBuffer) == GL_FALSE) throw "Error: Unable to create color buffer";
+    if (glIsBuffer(mColorBuffer) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create color buffer";
+        mColorBuffer = 0;
+        return;
+    }
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * v.size(), &v[0], GL_STATIC_DRAW);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to upload color buffer data";
+    if (GL_NO_ERROR != glGetError()) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to upload color buffer data";
+        glDeleteBuffers(1, &mColorBuffer);
+        mColorBuffer = 0;
+        return;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -392,24 +473,33 @@ void
 BufferObject::clear()
 {
     if (mIndexBuffer != 0) {
-        if (glIsBuffer(mIndexBuffer) == GL_TRUE) glDeleteBuffers(1, &mIndexBuffer);
+        if (glIsBuffer(mIndexBuffer) == GL_TRUE) {
+            glDeleteBuffers(1, &mIndexBuffer);
+        }
+        mIndexBuffer = 0;
     }
     if (mVertexBuffer != 0) {
-        if (glIsBuffer(mVertexBuffer) == GL_TRUE) glDeleteBuffers(1, &mVertexBuffer);
+        if (glIsBuffer(mVertexBuffer) == GL_TRUE) {
+            glDeleteBuffers(1, &mVertexBuffer);
+        }
+        mVertexBuffer = 0;
     }
     if (mColorBuffer != 0) {
-        if (glIsBuffer(mColorBuffer) == GL_TRUE) glDeleteBuffers(1, &mColorBuffer);
+        if (glIsBuffer(mColorBuffer) == GL_TRUE) {
+            glDeleteBuffers(1, &mColorBuffer);
+        }
+        mColorBuffer = 0;
     }
     if (mNormalBuffer != 0) {
-        if (glIsBuffer(mNormalBuffer) == GL_TRUE) glDeleteBuffers(1, &mNormalBuffer);
+        if (glIsBuffer(mNormalBuffer) == GL_TRUE) {
+            glDeleteBuffers(1, &mNormalBuffer);
+        }
+        mNormalBuffer = 0;
     }
 
-    mIndexBuffer = 0;
-    mVertexBuffer = 0;
-    mColorBuffer = 0;
-    mNormalBuffer = 0;
     mPrimType = GL_POINTS;
     mPrimNum = 0;
+    mError = "";
 }
 
 ////////////////////////////////////////
@@ -417,126 +507,352 @@ BufferObject::clear()
 ShaderProgram::ShaderProgram():
     mProgram(0),
     mVertShader(0),
-    mFragShader(0)
+    mFragShader(0),
+    mError("")
 {
 }
 
 ShaderProgram::~ShaderProgram() { clear(); }
 
+bool ShaderProgram::isValid() const {
+    if (mProgram == 0 || !glIsProgram(mProgram)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 void
 ShaderProgram::setVertShader(const std::string& s)
 {
-    mVertShader = glCreateShader(GL_VERTEX_SHADER);
-    if (glIsShader(mVertShader) == GL_FALSE) throw "Error: Unable to create shader program.";
+    if (mVertShader == 0 || !glIsShader(mVertShader)) {
+        mVertShader = glCreateShader(GL_VERTEX_SHADER);
+    }
+
+    if (glIsShader(mVertShader) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create vertex shader.";
+        mVertShader = 0;
+        return;
+    }
 
     GLint length = static_cast<GLint>(s.length());
     const char *str = s.c_str();
+
     glShaderSource(mVertShader, 1, &str, &length);
 
     glCompileShader(mVertShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to compile vertex shader.";
+
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(mVertShader, GL_COMPILE_STATUS, &compiled);
+
+    if (compiled == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to compile vertex shader.";
+
+        // Get info log
+        GLint logLength = 0;
+        glGetShaderiv(mVertShader, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 0) {
+            char *log = new char[logLength];
+            glGetShaderInfoLog(mVertShader, logLength, NULL, log);
+            mError += "\n";
+            mError += log;
+            delete[] log;
+        }
+
+        glDeleteShader(mVertShader);
+        mVertShader = 0;
+    }
 }
 
 void
 ShaderProgram::setFragShader(const std::string& s)
 {
-    mFragShader = glCreateShader(GL_FRAGMENT_SHADER);
-    if (glIsShader(mFragShader) == GL_FALSE) throw "Error: Unable to create shader program.";
+    if (mFragShader == 0 || !glIsShader(mFragShader)) {
+        mFragShader = glCreateShader(GL_FRAGMENT_SHADER);
+    }
+
+    if (glIsShader(mFragShader) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create fragment shader.";
+        mFragShader = 0;
+        return;
+    }
 
     GLint length = static_cast<GLint>(s.length());
     const char *str = s.c_str();
+
     glShaderSource(mFragShader, 1, &str, &length);
 
     glCompileShader(mFragShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to compile fragment shader.";
+
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(mFragShader, GL_COMPILE_STATUS, &compiled);
+
+    if (compiled == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to compile fragment shader.";
+
+        // Get info log
+        GLint logLength = 0;
+        glGetShaderiv(mFragShader, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 0) {
+            char *log = new char[logLength];
+            glGetShaderInfoLog(mFragShader, logLength, NULL, log);
+            mError += "\n";
+            mError += log;
+            delete[] log;
+        }
+
+        glDeleteShader(mFragShader);
+        mFragShader = 0;
+    }
 }
 
 void
 ShaderProgram::build()
 {
-    mProgram = glCreateProgram();
-    if (glIsProgram(mProgram) == GL_FALSE) throw "Error: Unable to create shader program.";
+    if (mProgram == 0 || !glIsProgram(mProgram)) {
+        mProgram = glCreateProgram();
+    } else {
+        // Detach currently assigned vertex and fragment programs
+        GLsizei numShaders = 0;
+        GLuint shaders[2];
+        glGetAttachedShaders(mProgram, 2, &numShaders, shaders);
+        for (GLsizei n = 0; n < numShaders; ++n) {
+            glDetachShader(mProgram, shaders[n]);
+        }
+    }
 
-    if (glIsShader(mVertShader) == GL_TRUE) glAttachShader(mProgram, mVertShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to attach vertex shader.";
+    if (glIsProgram(mProgram) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create shader program.";
+        mProgram = 0;
+        return;
+    }
 
-    if (glIsShader(mFragShader) == GL_TRUE) glAttachShader(mProgram, mFragShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to attach fragment shader.";
+    if (glIsShader(mVertShader) == GL_TRUE) {
+        glAttachShader(mProgram, mVertShader);
+        if (GL_NO_ERROR != glGetError()) {
+            if (mError.length() > 0) {
+                mError += "\n";
+            }
+            mError += "Unable to attach vertex shader.";
+            glDeleteProgram(mProgram);
+            mProgram = 0;
+            return;
+        }
+    }
 
+    if (glIsShader(mFragShader) == GL_TRUE) {
+        glAttachShader(mProgram, mFragShader);
+        if (GL_NO_ERROR != glGetError()) {
+            if (mError.length() > 0) {
+                mError += "\n";
+            }
+            mError += "Unable to attach fragment shader.";
+            if (glIsShader(mVertShader)) {
+                glDetachShader(mProgram, mVertShader);
+            }
+            glDeleteProgram(mProgram);
+            mProgram = 0;
+            return;
+        }
+    }
 
     glLinkProgram(mProgram);
 
-    GLint linked;
+    GLint linked = GL_FALSE;
     glGetProgramiv(mProgram, GL_LINK_STATUS, &linked);
 
-    if (!linked) throw "Error: Unable to link shader program.";
+    if (linked == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to link shader program.";
+        
+        // Get info log
+        GLint logLength = 0;
+        glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 0) {
+            char *log = new char[logLength];
+            glGetProgramInfoLog(mProgram, logLength, NULL, log);
+            mError += "\n";
+            mError += log;
+            delete[] log;
+        }
+
+        if (glIsShader(mVertShader) == GL_TRUE) {
+            glDetachShader(mProgram, mVertShader);
+        }
+        if (glIsShader(mFragShader) == GL_TRUE) {
+            glDetachShader(mProgram, mFragShader);
+        }
+        glDeleteProgram(mProgram);
+        mProgram = 0;
+    }
 }
 
 void
 ShaderProgram::build(const std::vector<GLchar*>& attributes)
 {
-    mProgram = glCreateProgram();
-    if (glIsProgram(mProgram) == GL_FALSE) throw "Error: Unable to create shader program.";
+    if (mProgram == 0 || !glIsProgram(mProgram)) {
+        mProgram = glCreateProgram();
+    } else {
+        // Detach currently assigned vertex and fragment programs
+        GLsizei numShaders = 0;
+        GLuint shaders[2];
+        glGetAttachedShaders(mProgram, 2, &numShaders, shaders);
+        for (GLsizei n = 0; n < numShaders; ++n) {
+            glDetachShader(mProgram, shaders[n]);
+        }
+    }
+
+    if (glIsProgram(mProgram) == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to create shader program.";
+        mProgram = 0;
+        return;
+    }
 
 
     for (GLuint n = 0, N = static_cast<GLuint>(attributes.size()); n < N; ++n) {
         glBindAttribLocation(mProgram, n, attributes[n]);
+        if (GL_NO_ERROR != glGetError()) {
+            if (mError.length() > 0) {
+                mError += "\n";
+            }
+            mError += "Unable to bind shader program attribute '";
+            mError += attributes[n];
+            mError += "'.";
+            glDeleteProgram(mProgram);
+            mProgram = 0;
+            return;
+        }
     }
 
-    if (glIsShader(mVertShader) == GL_TRUE) glAttachShader(mProgram, mVertShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to attach vertex shader.";
+    if (glIsShader(mVertShader) == GL_TRUE) {
+        glAttachShader(mProgram, mVertShader);
+        if (GL_NO_ERROR != glGetError()) {
+            if (mError.length() > 0) {
+                mError += "\n";
+            }
+            mError += "Unable to attach vertex shader.";
+            glDeleteProgram(mProgram);
+            mProgram = 0;
+            return;
+        }
+    }
 
-    if (glIsShader(mFragShader) == GL_TRUE) glAttachShader(mProgram, mFragShader);
-    if (GL_NO_ERROR != glGetError()) throw "Error: Unable to attach fragment shader.";
-
+    if (glIsShader(mFragShader) == GL_TRUE) {
+        glAttachShader(mProgram, mFragShader);
+        if (GL_NO_ERROR != glGetError()) {
+            if (mError.length() > 0) {
+                mError += "\n";
+            }
+            mError += "Unable to attach fragment shader.";
+            if (glIsShader(mVertShader)) {
+                glDetachShader(mProgram, mVertShader);
+            }
+            glDeleteProgram(mProgram);
+            mProgram = 0;
+            return;
+        }
+    }
 
     glLinkProgram(mProgram);
 
-    GLint linked;
+    GLint linked = GL_FALSE;
     glGetProgramiv(mProgram, GL_LINK_STATUS, &linked);
 
-    if (!linked) throw "Error: Unable to link shader program.";
+    if (linked == GL_FALSE) {
+        if (mError.length() > 0) {
+            mError += "\n";
+        }
+        mError += "Unable to link shader program.";
+
+        // Get info log
+        GLint logLength = 0;
+        glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 0) {
+            char *log = new char[logLength];
+            glGetProgramInfoLog(mProgram, logLength, NULL, log);
+            mError += "\n";
+            mError += log;
+            delete[] log;
+        }
+
+        if (glIsShader(mVertShader) == GL_TRUE) {
+            glDetachShader(mProgram, mVertShader);
+        }
+        if (glIsShader(mFragShader) == GL_TRUE) {
+            glDetachShader(mProgram, mFragShader);
+        }
+        glDeleteProgram(mProgram);
+        mProgram = 0;
+    }
 }
 
 void
 ShaderProgram::startShading() const
 {
-    if (glIsProgram(mProgram) == GL_FALSE)
-        throw "Error: called startShading() on uncompiled shader program.";
-
-    glUseProgram(mProgram);
+    if (isValid()) {
+        glUseProgram(mProgram);
+    }
 }
 
 void
 ShaderProgram::stopShading() const
 {
-    glUseProgram(0);
+    if (isValid()) {
+        glUseProgram(0);
+    }
 }
 
 void
 ShaderProgram::clear()
 {
-    GLsizei numShaders;
-    GLuint shaders[2];
-
     if (mProgram != 0) {
         if (glIsProgram(mProgram) == GL_TRUE) {
+            GLsizei numShaders = 0;
+            GLuint shaders[2];
             glGetAttachedShaders(mProgram, 2, &numShaders, shaders);
-            // detach and remove shaders
             for (GLsizei n = 0; n < numShaders; ++n) {
                 glDetachShader(mProgram, shaders[n]);
-                if (glIsShader(shaders[n]) == GL_TRUE) {
-                    glDeleteShader(shaders[n]);
-                }
             }
-            // remove program
             glDeleteProgram(mProgram);
         }
+        mProgram = 0;
     }
 
-    mProgram = 0;
-    mVertShader = 0;
-    mFragShader = 0;
+    if (mVertShader != 0) {
+        if (glIsShader(mVertShader) == GL_TRUE) {
+            glDeleteShader(mVertShader);
+        }
+        mVertShader = 0;
+    }
+
+    if (mFragShader != 0) {
+        if (glIsShader(mFragShader) == GL_TRUE) {
+            glDeleteShader(mFragShader);
+        }
+        mFragShader = 0;
+    }
+
+    mError = "";
 }
 
 

@@ -49,6 +49,7 @@
 #include <maya/MDataHandle.h>
 #include <maya/MColor.h>
 #include <maya/M3dView.h>
+#include <maya/MGlobal.h>
 
 
 namespace mvdb = openvdb_maya;
@@ -480,7 +481,6 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
     }
 
     if (!mShaderInitialized) {
-        /*
         mSurfaceShader.setVertShader(
             "#version 120\n"
             "varying vec3 normal;\n"
@@ -504,6 +504,11 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
 
         mSurfaceShader.build();
 
+        if (!mSurfaceShader.isValid()) {
+            MGlobal::displayWarning("OpenVDBVisualize: Failed to create surface shader");
+            MGlobal::displayInfo(mSurfaceShader.getError());
+        }
+
         mPointShader.setVertShader(
             "#version 120\n"
             "varying vec3 normal;\n"
@@ -525,7 +530,12 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
             "}\n");
 
         mPointShader.build();
-        */
+
+        if (!mPointShader.isValid()) {
+            MGlobal::displayWarning("OpenVDBVisualize: Failed to create point shader");
+            MGlobal::displayInfo(mPointShader.getError());
+        }
+
         mShaderInitialized = true;
     }
 
@@ -541,11 +551,11 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
     const bool surface          = MPlug(thisNode, aVisualizeSurface).asBool();
 
     if (surface && MPlug(thisNode, aCachedSurface).asBool()) {
-        //if (!view.selectMode()) mSurfaceShader.startShading();
+        if (!view.selectMode()) mSurfaceShader.startShading();
         for (size_t n = 0, N = mSurfaceBuffers.size(); n < N; ++n) {
             mSurfaceBuffers[n].render();
         }
-        //mSurfaceShader.stopShading();
+        mSurfaceShader.stopShading();
     }
 
     if (tiles && MPlug(thisNode, aCachedActiveTiles).asBool()) {
@@ -561,11 +571,11 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
     }
 
     if (voxels && MPlug(thisNode, aCachedActiveVoxels).asBool()) {
-        //if (!view.selectMode()) mPointShader.startShading();
+        if (!view.selectMode()) mPointShader.startShading();
         for (size_t n = 0, N = mPointBuffers.size(); n < N; ++n) {
             mPointBuffers[n].render();
         }
-        //mPointShader.stopShading();
+        mPointShader.stopShading();
     }
 
     if (!view.selectMode()) {

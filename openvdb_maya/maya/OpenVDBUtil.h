@@ -194,12 +194,16 @@ public:
     void genNormalBuffer(const std::vector<GLfloat>&);
     void genColorBuffer(const std::vector<GLfloat>&);
 
+    bool isValid() const;
+    inline const char *getError() const { return mError.c_str(); }
+
     void clear();
 
 private:
     GLuint mVertexBuffer, mNormalBuffer, mIndexBuffer, mColorBuffer;
     GLenum mPrimType;
     GLsizei mPrimNum;
+    std::string mError;
 };
 
 
@@ -218,10 +222,14 @@ public:
     void startShading() const;
     void stopShading() const;
 
+    bool isValid() const;
+    inline const char *getError() const { return mError.c_str(); }
+
     void clear();
 
 private:
     GLuint mProgram, mVertShader, mFragShader;
+    std::string mError;
 };
 
 
