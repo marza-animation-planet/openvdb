@@ -505,8 +505,8 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         mSurfaceShader.build();
 
         if (!mSurfaceShader.isValid()) {
-            MGlobal::displayWarning("OpenVDBVisualize: Failed to create surface shader");
-            MGlobal::displayInfo(mSurfaceShader.getError());
+            MGlobal::displayWarning("OpenVDBVisualize: Failed to create surface shader program");
+            MGlobal::displayWarning(mSurfaceShader.getError());
         }
 
         mPointShader.setVertShader(
@@ -532,8 +532,8 @@ OpenVDBVisualizeNode::draw(M3dView & view, const MDagPath& /*path*/,
         mPointShader.build();
 
         if (!mPointShader.isValid()) {
-            MGlobal::displayWarning("OpenVDBVisualize: Failed to create point shader");
-            MGlobal::displayInfo(mPointShader.getError());
+            MGlobal::displayWarning("OpenVDBVisualize: Failed to create point shader program");
+            MGlobal::displayWarning(mPointShader.getError());
         }
 
         mShaderInitialized = true;

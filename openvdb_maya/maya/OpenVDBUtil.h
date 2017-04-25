@@ -228,6 +228,14 @@ public:
     void clear();
 
 private:
+
+    bool checkStatus(const char *msg=NULL);
+    void getShaderLog(GLuint shd, std::string &log, bool append=false) const;
+    void getProgramLog(GLuint prg, std::string &log, bool append=false) const;
+
+
+private:
+
     GLuint mProgram, mVertShader, mFragShader;
     std::string mError;
 };

@@ -282,7 +282,8 @@ BufferObject::BufferObject():
 
 BufferObject::~BufferObject() { clear(); }
 
-bool BufferObject::isValid() const {
+bool
+BufferObject::isValid() const {
     if (mPrimNum == 0 || mIndexBuffer == 0 || mVertexBuffer == 0 || !glIsBuffer(mIndexBuffer) || !glIsBuffer(mVertexBuffer)) {
         return false;
     } else {
@@ -514,7 +515,8 @@ ShaderProgram::ShaderProgram():
 
 ShaderProgram::~ShaderProgram() { clear(); }
 
-bool ShaderProgram::isValid() const {
+bool
+ShaderProgram::isValid() const {
     if (mProgram == 0 || !glIsProgram(mProgram)) {
         return false;
     } else {
@@ -523,10 +525,97 @@ bool ShaderProgram::isValid() const {
 }
 
 void
+ShaderProgram::getShaderLog(GLuint shd, std::string &log, bool append) const {
+    GLint logLength = 0;
+    glGetShaderiv(shd, GL_INFO_LOG_LENGTH, &logLength);
+    if (logLength > 0) {
+        char *tmp = new char[logLength];
+        glGetShaderInfoLog(shd, logLength, NULL, tmp);
+        if (append) {
+            log += tmp;
+        } else {
+            log = tmp;
+        }
+        delete[] tmp;
+    }
+}
+
+void
+ShaderProgram::getProgramLog(GLuint prg, std::string &log, bool append) const {
+    GLint logLength = 0;
+    glGetProgramiv(prg, GL_INFO_LOG_LENGTH, &logLength);
+    if (logLength > 0) {
+        char *tmp = new char[logLength];
+        glGetProgramInfoLog(prg, logLength, NULL, tmp);
+        if (append) {
+            log += tmp;
+        } else {
+            log = tmp;
+        }
+        delete[] tmp;
+    }
+}
+
+bool
+ShaderProgram::checkStatus(const char *msg) {
+    GLenum eError = glGetError();
+
+    if (eError == GL_NO_ERROR) {
+        return true;
+    }
+
+    if (mError.length() > 0) {
+        mError += "\n";
+    }
+
+    if (msg) {
+        mError += msg;
+        mError += "\n";
+    }
+
+    switch (eError) {
+    case GL_INVALID_ENUM:
+        mError += "Invalid Enumerate";
+        break;
+
+    case GL_INVALID_VALUE:
+        mError += "Invalid Value";
+        break;
+
+    case GL_INVALID_OPERATION:
+        mError += "Invalid Operation";
+        break;
+
+    case GL_STACK_OVERFLOW:
+        mError += "Stack Overflow";
+        break;
+
+    case GL_STACK_UNDERFLOW:
+        mError += "Stack Underflow";
+        break;
+
+    case GL_OUT_OF_MEMORY:
+        mError += "Out of Memory";
+        break;
+
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
+        mError += "Invalid Framebuffer Operation";
+        break;
+
+    default:
+        mError += "Unknown OpenGL Error";
+        break;
+    }
+
+    return false;
+} 
+
+void
 ShaderProgram::setVertShader(const std::string& s)
 {
     if (mVertShader == 0 || !glIsShader(mVertShader)) {
         mVertShader = glCreateShader(GL_VERTEX_SHADER);
+        checkStatus();
     }
 
     if (glIsShader(mVertShader) == GL_FALSE) {
@@ -542,8 +631,14 @@ ShaderProgram::setVertShader(const std::string& s)
     const char *str = s.c_str();
 
     glShaderSource(mVertShader, 1, &str, &length);
+    if (!checkStatus("Unable to set vertex shader sources.")) {
+        glDeleteShader(mVertShader);
+        mVertShader = 0;
+        return;
+    }
 
     glCompileShader(mVertShader);
+    checkStatus();
 
     GLint compiled = GL_FALSE;
     glGetShaderiv(mVertShader, GL_COMPILE_STATUS, &compiled);
@@ -552,19 +647,8 @@ ShaderProgram::setVertShader(const std::string& s)
         if (mError.length() > 0) {
             mError += "\n";
         }
-        mError += "Unable to compile vertex shader.";
-
-        // Get info log
-        GLint logLength = 0;
-        glGetShaderiv(mVertShader, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 0) {
-            char *log = new char[logLength];
-            glGetShaderInfoLog(mVertShader, logLength, NULL, log);
-            mError += "\n";
-            mError += log;
-            delete[] log;
-        }
-
+        mError += "Unable to compile vertex shader.\nShader Log: ";
+        getShaderLog(mVertShader, mError, true);
         glDeleteShader(mVertShader);
         mVertShader = 0;
     }
@@ -575,6 +659,7 @@ ShaderProgram::setFragShader(const std::string& s)
 {
     if (mFragShader == 0 || !glIsShader(mFragShader)) {
         mFragShader = glCreateShader(GL_FRAGMENT_SHADER);
+        checkStatus();
     }
 
     if (glIsShader(mFragShader) == GL_FALSE) {
@@ -590,8 +675,14 @@ ShaderProgram::setFragShader(const std::string& s)
     const char *str = s.c_str();
 
     glShaderSource(mFragShader, 1, &str, &length);
+    if (!checkStatus("Unable to set fragment shader sources.")) {
+        glDeleteShader(mFragShader);
+        mFragShader = 0;
+        return;
+    }
 
     glCompileShader(mFragShader);
+    checkStatus();
 
     GLint compiled = GL_FALSE;
     glGetShaderiv(mFragShader, GL_COMPILE_STATUS, &compiled);
@@ -600,19 +691,8 @@ ShaderProgram::setFragShader(const std::string& s)
         if (mError.length() > 0) {
             mError += "\n";
         }
-        mError += "Unable to compile fragment shader.";
-
-        // Get info log
-        GLint logLength = 0;
-        glGetShaderiv(mFragShader, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 0) {
-            char *log = new char[logLength];
-            glGetShaderInfoLog(mFragShader, logLength, NULL, log);
-            mError += "\n";
-            mError += log;
-            delete[] log;
-        }
-
+        mError += "Unable to compile fragment shader.\nShader Log: ";
+        getShaderLog(mFragShader, mError, true);
         glDeleteShader(mFragShader);
         mFragShader = 0;
     }
@@ -633,6 +713,8 @@ ShaderProgram::build()
         }
     }
 
+    checkStatus();
+
     if (glIsProgram(mProgram) == GL_FALSE) {
         if (mError.length() > 0) {
             mError += "\n";
@@ -644,11 +726,7 @@ ShaderProgram::build()
 
     if (glIsShader(mVertShader) == GL_TRUE) {
         glAttachShader(mProgram, mVertShader);
-        if (GL_NO_ERROR != glGetError()) {
-            if (mError.length() > 0) {
-                mError += "\n";
-            }
-            mError += "Unable to attach vertex shader.";
+        if (!checkStatus("Unable to attach vertex shader.")) {
             glDeleteProgram(mProgram);
             mProgram = 0;
             return;
@@ -657,11 +735,7 @@ ShaderProgram::build()
 
     if (glIsShader(mFragShader) == GL_TRUE) {
         glAttachShader(mProgram, mFragShader);
-        if (GL_NO_ERROR != glGetError()) {
-            if (mError.length() > 0) {
-                mError += "\n";
-            }
-            mError += "Unable to attach fragment shader.";
+        if (!checkStatus("Unable to attach fragment shader.")) {
             if (glIsShader(mVertShader)) {
                 glDetachShader(mProgram, mVertShader);
             }
@@ -672,6 +746,7 @@ ShaderProgram::build()
     }
 
     glLinkProgram(mProgram);
+    checkStatus();
 
     GLint linked = GL_FALSE;
     glGetProgramiv(mProgram, GL_LINK_STATUS, &linked);
@@ -680,19 +755,8 @@ ShaderProgram::build()
         if (mError.length() > 0) {
             mError += "\n";
         }
-        mError += "Unable to link shader program.";
-        
-        // Get info log
-        GLint logLength = 0;
-        glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 0) {
-            char *log = new char[logLength];
-            glGetProgramInfoLog(mProgram, logLength, NULL, log);
-            mError += "\n";
-            mError += log;
-            delete[] log;
-        }
-
+        mError += "Unable to link shader program.\nProgram Log: ";
+        getProgramLog(mProgram, mError, true);
         if (glIsShader(mVertShader) == GL_TRUE) {
             glDetachShader(mProgram, mVertShader);
         }
@@ -719,6 +783,8 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
         }
     }
 
+    checkStatus();
+
     if (glIsProgram(mProgram) == GL_FALSE) {
         if (mError.length() > 0) {
             mError += "\n";
@@ -728,16 +794,12 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
         return;
     }
 
-
     for (GLuint n = 0, N = static_cast<GLuint>(attributes.size()); n < N; ++n) {
         glBindAttribLocation(mProgram, n, attributes[n]);
-        if (GL_NO_ERROR != glGetError()) {
-            if (mError.length() > 0) {
-                mError += "\n";
-            }
-            mError += "Unable to bind shader program attribute '";
-            mError += attributes[n];
-            mError += "'.";
+        std::string msg = "Unable to bind shader program attribute '";
+        msg += attributes[n];
+        msg += "'."; 
+        if (!checkStatus(msg.c_str())) {
             glDeleteProgram(mProgram);
             mProgram = 0;
             return;
@@ -746,11 +808,7 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
 
     if (glIsShader(mVertShader) == GL_TRUE) {
         glAttachShader(mProgram, mVertShader);
-        if (GL_NO_ERROR != glGetError()) {
-            if (mError.length() > 0) {
-                mError += "\n";
-            }
-            mError += "Unable to attach vertex shader.";
+        if (!checkStatus("Unable to attach vertex shader.")) {
             glDeleteProgram(mProgram);
             mProgram = 0;
             return;
@@ -759,11 +817,7 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
 
     if (glIsShader(mFragShader) == GL_TRUE) {
         glAttachShader(mProgram, mFragShader);
-        if (GL_NO_ERROR != glGetError()) {
-            if (mError.length() > 0) {
-                mError += "\n";
-            }
-            mError += "Unable to attach fragment shader.";
+        if (!checkStatus("Unable to attach fragment shader.")) {
             if (glIsShader(mVertShader)) {
                 glDetachShader(mProgram, mVertShader);
             }
@@ -774,6 +828,7 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
     }
 
     glLinkProgram(mProgram);
+    checkStatus();
 
     GLint linked = GL_FALSE;
     glGetProgramiv(mProgram, GL_LINK_STATUS, &linked);
@@ -782,19 +837,8 @@ ShaderProgram::build(const std::vector<GLchar*>& attributes)
         if (mError.length() > 0) {
             mError += "\n";
         }
-        mError += "Unable to link shader program.";
-
-        // Get info log
-        GLint logLength = 0;
-        glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 0) {
-            char *log = new char[logLength];
-            glGetProgramInfoLog(mProgram, logLength, NULL, log);
-            mError += "\n";
-            mError += log;
-            delete[] log;
-        }
-
+        mError += "Unable to link shader program.\nProgram Log: ";
+        getProgramLog(mProgram, mError, true);
         if (glIsShader(mVertShader) == GL_TRUE) {
             glDetachShader(mProgram, mVertShader);
         }
