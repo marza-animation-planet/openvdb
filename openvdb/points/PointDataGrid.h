@@ -39,6 +39,7 @@
 #ifndef OPENVDB_POINTS_POINT_DATA_GRID_HAS_BEEN_INCLUDED
 #define OPENVDB_POINTS_POINT_DATA_GRID_HAS_BEEN_INCLUDED
 
+#include <openvdb/version.h>
 #include <openvdb/Grid.h>
 #include <openvdb/tree/Tree.h>
 #include <openvdb/tree/LeafNode.h>
@@ -48,8 +49,13 @@
 #include "AttributeGroup.h"
 #include "AttributeSet.h"
 #include "StreamCompression.h"
+#include <cstring> // std::memcpy
+#include <iostream>
+#include <limits>
+#include <memory>
 #include <type_traits> // std::is_same
 #include <utility> // std::pair, std::make_pair
+#include <vector>
 
 
 class TestPointDataLeaf;
@@ -325,7 +331,7 @@ public:
         : BaseLeaf(other, zeroVal<T>(), zeroVal<T>(), TopologyCopy())
         , mAttributeSet(new AttributeSet) { }
 
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     PointDataLeafNode(PartialCreate, const Coord& coords,
         const T& value = zeroVal<T>(), bool active = false)
         : BaseLeaf(PartialCreate(), coords, value, active)
@@ -1180,6 +1186,16 @@ PointDataLeafNode<T, Log2Dim>::readBuffers(std::istream& is, const CoordBBox& /*
 {
     struct Local
     {
+        static void destroyPagedStream(const io::StreamMetadata::AuxDataMap& auxData, const Index index)
+        {
+            // if paged stream exists, delete it
+            std::string key("paged:" + std::to_string(index));
+            auto it = auxData.find(key);
+            if (it != auxData.end()) {
+                (const_cast<io::StreamMetadata::AuxDataMap&>(auxData)).erase(it);
+            }
+        }
+
         static compression::PagedInputStream& getOrInsertPagedStream(   const io::StreamMetadata::AuxDataMap& auxData,
                                                                         const Index index)
         {
@@ -1308,6 +1324,15 @@ PointDataLeafNode<T, Log2Dim>::readBuffers(std::istream& is, const CoordBBox& /*
             pagedStream.setSizeOnly(false);
             array->readPagedBuffers(pagedStream);
         }
+        // cleanup paged stream reference in auxiliary metadata
+        if (pass > attributes + 3) {
+            Local::destroyPagedStream(meta->auxData(), attributeIndex-1);
+        }
+    }
+    else if (pass < buffers()) {
+        // pass 2n+3 - cleanup last paged stream
+        const Index attributeIndex = pass - attributes - 4;
+        Local::destroyPagedStream(meta->auxData(), attributeIndex);
     }
 }
 
@@ -1526,7 +1551,7 @@ template<typename T, Index Log2Dim>
 inline void
 PointDataLeafNode<T, Log2Dim>::fill(const CoordBBox& bbox, const ValueType& value, bool active)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1633,12 +1658,6 @@ void initialize();
 void uninitialize();
 
 }
-
-
-/// @deprecated See internal::initialize()
-OPENVDB_DEPRECATED void initialize();
-/// @deprecated See internal::uninitialize()
-OPENVDB_DEPRECATED void uninitialize();
 
 } // namespace points
 
