@@ -200,11 +200,9 @@ public:
 class Interrupter
 {
 public:
-    Interrupter(const char* title = nullptr):
-        mUTI(UTgetInterrupt()), mRunning(false)
-    {
-        if (title) mUTI->setAppTitle(title);
-    }
+    explicit Interrupter(const char* title = nullptr):
+        mUTI{UTgetInterrupt()}, mRunning{false}, mTitle{title ? title : ""}
+    {}
     ~Interrupter() { if (mRunning) this->end(); }
 
     Interrupter(const Interrupter&) = default;
@@ -212,7 +210,9 @@ public:
 
     /// @brief Signal the start of an interruptible operation.
     /// @param name  an optional descriptive name for the operation
-    void start(const char* name = nullptr) {if (!mRunning) { mRunning=true; mUTI->opStart(name); }}
+    void start(const char* name = nullptr) {
+        if (!mRunning) { mRunning = true; mUTI->opStart(name ? name : mTitle.c_str()); }
+    }
     /// Signal the end of an interruptible operation.
     void end() { if (mRunning) { mUTI->opEnd(); mRunning = false; } }
 
@@ -224,6 +224,7 @@ public:
 private:
     UT_Interrupt* mUTI;
     bool mRunning;
+    std::string mTitle;
 };
 
 

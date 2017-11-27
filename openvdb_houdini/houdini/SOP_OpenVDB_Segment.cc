@@ -299,12 +299,12 @@ SOP_OpenVDB_Segment::cookMySop(OP_Context& context)
         const GU_Detail* inputGeoPt = inputGeo(0);
         const GA_PrimitiveGroup *group = nullptr;
 
-        hvdb::Interrupter boss("VDB Segment");
+        hvdb::Interrupter boss("Segmenting VDBs");
 
         {
             UT_String str;
             evalString(str, "group", 0, time);
-            group = matchGroup(const_cast<GU_Detail&>(*inputGeoPt), str.toStdString());
+            group = matchGroup(*inputGeoPt, str.toStdString());
         }
 
 

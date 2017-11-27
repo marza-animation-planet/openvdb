@@ -336,6 +336,7 @@ struct BaseScatter
         , mSeed(seed)
         , mSpread(spread)
         , mInterrupter(interrupter) {}
+    virtual ~BaseScatter() {}
 
     /// @brief Print information about the scattered points
     /// @parm name  A name to insert into the printed info
@@ -603,13 +604,12 @@ SOP_OpenVDB_Scatter::cookMySop(OP_Context& context)
         // Get the group of grids to process.
         UT_String tmp;
         evalString(tmp, "group", 0, time);
-        const GA_PrimitiveGroup* group
-            = this->matchGroup(const_cast<GU_Detail&>(*vdbgeo), tmp.toStdString());
+        const GA_PrimitiveGroup* group = this->matchGroup(*vdbgeo, tmp.toStdString());
 
         evalString(tmp, "customname", 0, time);
         const std::string customName = tmp.toStdString();
 
-        hvdb::Interrupter boss("OpenVDB Scatter");
+        hvdb::Interrupter boss("Scattering points on VDBs");
 
         // Choose a fast random generator with a long period. Drawback here for
         // mt11213b is that it requires 352*sizeof(uint32) bytes.
@@ -624,6 +624,8 @@ SOP_OpenVDB_Scatter::cookMySop(OP_Context& context)
         std::vector<std::string> emptyGrids;
         std::vector<openvdb::points::PointDataGrid::Ptr> pointGrids;
         PointAccessor pointAccessor(gdp);
+
+        const GA_Offset firstOffset = gdp->getNumPointOffsets();
 
         // Process each VDB primitive (with a non-null grid pointer)
         // that belongs to the selected group.
@@ -766,8 +768,10 @@ SOP_OpenVDB_Scatter::cookMySop(OP_Context& context)
             evalString(scatterStr, "sgroup", 0, time);
             GA_PointGroup* ptgroup = gdp->newPointGroup(scatterStr);
 
-            // add ALL the points to this group
-            ptgroup->addRange(gdp->getPointRange());
+            // add the scattered points to this group
+
+            const GA_Offset lastOffset = gdp->getNumPointOffsets();
+            ptgroup->addRange(GA_Range(gdp->getPointMap(), firstOffset, lastOffset));
 
             const std::string groupName(scatterStr.toStdString());
             for (auto& pointGrid : pointGrids) {

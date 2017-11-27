@@ -2,6 +2,18 @@
 
 @page changes Release Notes
 
+@htmlonly <a name="v5_1_0_changes"></a>@endhtmlonly
+@par
+<B>Version 5.1.0</B> - <I>In development</I>
+
+@par
+Houdini:
+- Added output grid naming options to the Points&nbsp;Convert&nbsp;SOP.
+- Added a @b SOP_NodeVDB::matchGroup overload that eliminates the need
+  to @c const_cast the @b GU_Detail.
+  <I>[Contributed by Jeff&nbsp;Lait]</I>
+
+
 @htmlonly <a name="v5_0_0_changes"></a>@endhtmlonly
 @par
 <B>Version 5.0.0</B> - <I>November 6, 2017</I>
@@ -56,7 +68,6 @@ Bug fixes:
   @vdblink::points::PointDataLeafNode PointDataLeafNode@endlink&zwj;s
   when delayed loading was in effect.
   <I>[Contributed&nbsp;by&nbsp;Dan&nbsp;Bailey]</I>
-
 
 @anchor v5_0_0_ABI_changes
 @par

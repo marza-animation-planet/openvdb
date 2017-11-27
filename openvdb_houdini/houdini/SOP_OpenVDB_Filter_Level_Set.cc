@@ -823,8 +823,7 @@ SOP_OpenVDB_Filter_Level_Set::cookMySop(OP_Context& context)
         UT_String groupStr;
         evalString(groupStr, "group", 0, time);
 
-        const GA_PrimitiveGroup *group =
-            matchGroup(const_cast<GU_Detail&>(*gdp), groupStr.toStdString());
+        const GA_PrimitiveGroup *group = matchGroup(*gdp, groupStr.toStdString());
         for (hvdb::VdbPrimIterator it(gdp, group); it; ++it) {
 
             // Check grid class
