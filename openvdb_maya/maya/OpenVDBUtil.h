@@ -60,12 +60,14 @@
 #include <maya/MFnPluginData.h>
 #include <maya/MTime.h>
 
+#include <algorithm> // for std::min(), std::max()
+#include <cmath> // for std::abs(), std::floor()
 #include <iostream>
-#include <sstream>
 #include <limits>
-
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 
 ////////////////////////////////////////
@@ -74,25 +76,25 @@
 namespace openvdb_maya {
 
 
-typedef openvdb::GridBase           Grid;
-typedef openvdb::GridBase::Ptr      GridPtr;
-typedef openvdb::GridBase::ConstPtr GridCPtr;
-typedef openvdb::GridBase&          GridRef;
-typedef const openvdb::GridBase&    GridCRef;
+using Grid = openvdb::GridBase;
+using GridPtr = openvdb::GridBase::Ptr;
+using GridCPtr = openvdb::GridBase::ConstPtr;
+using GridRef = openvdb::GridBase&;
+using GridCRef = const openvdb::GridBase&;
 
-typedef openvdb::GridPtrVec         GridPtrVec;
-typedef GridPtrVec::iterator        GridPtrVecIter;
-typedef GridPtrVec::const_iterator  GridPtrVecCIter;
+using GridPtrVec = openvdb::GridPtrVec;
+using GridPtrVecIter = GridPtrVec::iterator;
+using GridPtrVecCIter = GridPtrVec::const_iterator;
 
-typedef openvdb::GridCPtrVec        GridCPtrVec;
-typedef GridCPtrVec::iterator       GridCPtrVecIter;
-typedef GridCPtrVec::const_iterator GridCPtrVecCIter;
+using GridCPtrVec = openvdb::GridCPtrVec;
+using GridCPtrVecIter = GridCPtrVec::iterator;
+using GridCPtrVecCIter = GridCPtrVec::const_iterator;
 
 
 ////////////////////////////////////////
 
 
-/// @brief  returns a pointer to the input VDB data object or NULL if this fails.
+/// @brief Return a pointer to the input VDB data object or nullptr if this fails.
 const OpenVDBData* getInputVDB(const MObject& vdb, MDataBlock& data);
 
 
@@ -149,16 +151,8 @@ struct Timer
     double seconds() const { return (tbb::tick_count::now() - mStamp).seconds(); }
 
     std::string elapsedTime() const {
-        char buffer[1024];
         double sec = seconds();
-        //return sec < 1.0 ? boost::lexical_cast<std::string>(sec * 1000.0) + " ms" :
-        //     boost::lexical_cast<std::string>(sec) + " s";
-        if (sec < 1.0) {
-            sprintf(buffer, "%lf ms", sec * 1000.0);
-        } else {
-            sprintf(buffer, "%lf s", sec);
-        }
-        return buffer;
+        return sec < 1.0 ? (std::to_string(sec * 1000.0) + " ms") : (std::to_string(sec) + " s");
     }
 
 private:
@@ -250,8 +244,8 @@ template<class TreeType>
 class MinMaxVoxel
 {
 public:
-    typedef openvdb::tree::LeafManager<TreeType> LeafArray;
-    typedef typename TreeType::ValueType ValueType;
+    using LeafArray = openvdb::tree::LeafManager<TreeType>;
+    using ValueType = typename TreeType::ValueType;
 
     // LeafArray = openvdb::tree::LeafManager<TreeType> leafs(myTree)
     MinMaxVoxel(LeafArray&);
@@ -467,7 +461,7 @@ public:
     template<typename GridType>
     void operator()(typename GridType::ConstPtr grid)
     {
-        typedef typename GridType::TreeType TreeType;
+        using TreeType = typename GridType::TreeType;
 
         openvdb::tree::LeafManager<const TreeType> leafs(grid->tree());
 
@@ -491,7 +485,7 @@ protected:
     template<typename TreeType>
     struct LeafOp
     {
-        typedef openvdb::tree::LeafManager<const TreeType> LeafManagerType;
+        using LeafManagerType = openvdb::tree::LeafManager<const TreeType>;
 
         LeafOp(const LeafManagerType& leafs, WireBoxBuilder& boxBuilder, const openvdb::Vec3s& color)
             : mLeafs(&leafs), mBoxBuilder(&boxBuilder), mColor(color) {}
@@ -531,7 +525,7 @@ public:
     template<typename GridType>
     void operator()(typename GridType::ConstPtr grid)
     {
-        typedef typename GridType::TreeType TreeType;
+        using TreeType = typename GridType::TreeType;
         const openvdb::Index maxDepth = TreeType::ValueAllIter::LEAF_DEPTH - 1;
         size_t tileCount = 0;
 
@@ -652,7 +646,7 @@ template<typename TreeType>
 class PointGenerator
 {
 public:
-    typedef openvdb::tree::LeafManager<TreeType> LeafManagerType;
+    using LeafManagerType = openvdb::tree::LeafManager<TreeType>;
 
     PointGenerator(
         std::vector<GLfloat>& points,
@@ -678,7 +672,7 @@ public:
 
     inline void operator()(const tbb::blocked_range<size_t>& range) const
     {
-        typedef typename TreeType::LeafNodeType::ValueOnCIter ValueOnCIter;
+        using ValueOnCIter = typename TreeType::LeafNodeType::ValueOnCIter;
 
         openvdb::Vec3d pos;
         unsigned index = 0;
@@ -751,7 +745,7 @@ template<typename GridType>
 class PointAttributeGenerator
 {
 public:
-    typedef typename GridType::ValueType ValueType;
+    using ValueType = typename GridType::ValueType;
 
     PointAttributeGenerator(
         std::vector<GLfloat>& points,
@@ -763,7 +757,7 @@ public:
         bool isLevelSet = false)
         : mPoints(&points)
         , mColors(&colors)
-        , mNormals(NULL)
+        , mNormals(nullptr)
         , mGrid(&grid)
         , mAccessor(grid.tree())
         , mMinValue(minValue)
@@ -926,8 +920,8 @@ public:
 
         //////////
 
-        typedef typename GridType::ValueType ValueType;
-        typedef typename GridType::TreeType TreeType;
+        using ValueType = typename GridType::ValueType;
+        using TreeType = typename GridType::TreeType;
 
         const TreeType& tree = grid->tree();
         const bool isLevelSetGrid = grid->getGridClass() == openvdb::GRID_LEVEL_SET;
@@ -1015,7 +1009,7 @@ inline void
 doProcessTypedGrid(GridPtrType grid, OpType& op)
 {
     GridProcessor<GridType, OpType,
-        boost::is_const<typename GridPtrType::element_type>::value>::call(op, grid);
+        std::is_const<typename GridPtrType::element_type>::value>::call(op, grid);
 }
 
 

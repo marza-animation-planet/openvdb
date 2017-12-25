@@ -42,9 +42,9 @@ class OpenVDBToPolygonsNode : public MPxNode
 public:
 
     OpenVDBToPolygonsNode() {}
-    virtual ~OpenVDBToPolygonsNode() {}
+    ~OpenVDBToPolygonsNode() override = default;
 
-    virtual MStatus compute(const MPlug& plug, MDataBlock& data);
+    MStatus compute(const MPlug& plug, MDataBlock& data) override;
 
     static void * creator();
     static MStatus initialize();

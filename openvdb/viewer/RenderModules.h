@@ -37,8 +37,8 @@
 #include <openvdb/tools/PointScatter.h>
 #include <openvdb/tree/LeafManager.h>
 #include <openvdb/math/Operators.h>
-
-#include <boost/random/mersenne_twister.hpp>
+#include <string>
+#include <vector>
 
 #include <GL/glew.h>
 #if defined(__APPLE__) || defined(MACOSX)
@@ -131,9 +131,9 @@ class ViewportModule: public RenderModule
 {
 public:
     ViewportModule();
-    virtual ~ViewportModule() {}
+    ~ViewportModule() override = default;
 
-    virtual void render();
+    void render() override;
 
 private:
     float mAxisGnomonScale, mGroundPlaneScale;
@@ -148,9 +148,9 @@ class TreeTopologyModule: public RenderModule
 {
 public:
     TreeTopologyModule(const openvdb::GridBase::ConstPtr&);
-    virtual ~TreeTopologyModule() {}
+    ~TreeTopologyModule() override = default;
 
-    virtual void render();
+    void render() override;
 
 private:
     void init();
@@ -170,9 +170,9 @@ class VoxelModule: public RenderModule
 {
 public:
     VoxelModule(const openvdb::GridBase::ConstPtr&);
-    virtual ~VoxelModule() {}
+    ~VoxelModule() override = default;
 
-    virtual void render();
+    void render() override;
 
 private:
     void init();
@@ -192,9 +192,9 @@ class MeshModule: public RenderModule
 {
 public:
     MeshModule(const openvdb::GridBase::ConstPtr&);
-    virtual ~MeshModule() {}
+    ~MeshModule() override = default;
 
-    virtual void render();
+    void render() override;
 
 private:
     void init();

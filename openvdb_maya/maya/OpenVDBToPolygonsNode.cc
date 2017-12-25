@@ -51,10 +51,12 @@
 #include <maya/MArrayDataHandle.h>
 #include <maya/MArrayDataBuilder.h>
 
-#include <boost/scoped_array.hpp>
-
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 
 namespace mvdb = openvdb_maya;
@@ -119,7 +121,7 @@ private:
 
 struct VDBToMayaMesh::FaceCopyOp
 {
-    typedef boost::scoped_array<uint32_t> UInt32Array;
+    using UInt32Array = std::unique_ptr<uint32_t[]>;
 
     FaceCopyOp(MIntArray& indices, MIntArray& polyCount,
         const UInt32Array& numQuadsPrefix, const UInt32Array& numTrianglesPrefix,
@@ -185,8 +187,8 @@ VDBToMayaMesh::operator()(typename GridType::ConstPtr grid)
     MIntArray polygonCounts, polygonConnects;
     {
         const size_t polygonPoolListSize = mMesher->polygonPoolListSize();
-        boost::scoped_array<uint32_t> numQuadsPrefix(new uint32_t[polygonPoolListSize]);
-        boost::scoped_array<uint32_t> numTrianglesPrefix(new uint32_t[polygonPoolListSize]);
+        std::unique_ptr<uint32_t[]> numQuadsPrefix(new uint32_t[polygonPoolListSize]);
+        std::unique_ptr<uint32_t[]> numTrianglesPrefix(new uint32_t[polygonPoolListSize]);
         uint32_t numQuads = 0, numTriangles = 0;
 
         openvdb::tools::PolygonPoolList& polygonPoolList = mMesher->polygonPoolList();
@@ -380,7 +382,6 @@ MStatus OpenVDBToPolygonsNode::compute(const MPlug& plug, MDataBlock& data)
 
     return data.setClean(plug);
 }
-
 
 // Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
