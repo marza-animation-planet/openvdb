@@ -17,6 +17,8 @@ if sys.platform == "win32":
   ARGUMENTS["mscver"] = str(mscver)
 
 env = excons.MakeBaseEnv()
+if sys.platform == "win32":
+  env.Append(CCFLAGS=" /bigobj")
 
 abi3 = (excons.GetArgument("openvdb-abi3", 0, int) != 0)
 
