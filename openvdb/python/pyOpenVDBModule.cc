@@ -831,10 +831,10 @@ struct VecTypeDescr
 
 #ifdef DWA_OPENVDB
 #define PY_OPENVDB_MODULE_NAME  _openvdb
-extern "C" { void init_openvdb(); }
+// extern "C" { void init_openvdb(); }
 #else
 #define PY_OPENVDB_MODULE_NAME  pyopenvdb
-extern "C" { void initpyopenvdb(); }
+// extern "C" { void initpyopenvdb(); }
 #endif
 
 BOOST_PYTHON_MODULE(PY_OPENVDB_MODULE_NAME)
