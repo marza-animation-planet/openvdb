@@ -67,7 +67,7 @@ excons.Call("tbb", overrides={"tbb-static": 1}, imp=["RequireTBB"])
 # GLEW (always include sources)
 glew_incdirs = ["ext/glew-2.0.0/include"]
 glew_defs = ["GLEW_STATIC"]
-glew_srcs = ["ext/glew-2.0.0/src/glew.c"]
+glew_srcs = ["ext/glew-2.0.0/src/glew.cpp"]
 
 
 
