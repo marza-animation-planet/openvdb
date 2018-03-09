@@ -31,6 +31,17 @@
 #include <boost/python.hpp>
 #include "openvdb/openvdb.h"
 
+#ifdef _MSC_VER
+namespace boost {
+    template <>
+    openvdb::OPENVDB_VERSION_NAME::Metadata const volatile *
+    get_pointer<openvdb::OPENVDB_VERSION_NAME::Metadata const volatile>(openvdb::OPENVDB_VERSION_NAME::Metadata const volatile * p) {
+        return p;
+    }
+}
+#endif
+
+
 namespace py = boost::python;
 using namespace openvdb::OPENVDB_VERSION_NAME;
 

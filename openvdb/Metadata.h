@@ -61,20 +61,20 @@ public:
     Metadata& operator=(const Metadata&) = delete;
 
     /// Return the type name of the metadata.
-    virtual Name typeName() const = 0;
+    virtual Name typeName() const;
 
     /// Return a copy of the metadata.
-    virtual Metadata::Ptr copy() const = 0;
+    virtual Metadata::Ptr copy() const;
 
     /// Copy the given metadata into this metadata.
-    virtual void copy(const Metadata& other) = 0;
+    virtual void copy(const Metadata& other);
 
     /// Return a textual representation of this metadata.
-    virtual std::string str() const = 0;
+    virtual std::string str() const;
 
     /// Return the boolean representation of this metadata (empty strings
     /// and zeroVals evaluate to false; most other values evaluate to true).
-    virtual bool asBool() const = 0;
+    virtual bool asBool() const;
 
     /// Return @c true if the given metadata is equivalent to this metadata.
     bool operator==(const Metadata& other) const;
@@ -82,7 +82,7 @@ public:
     bool operator!=(const Metadata& other) const { return !(*this == other); }
 
     /// Return the size of this metadata in bytes.
-    virtual Index32 size() const = 0;
+    virtual Index32 size() const;
 
     /// Unserialize this metadata from a stream.
     void read(std::istream&);
@@ -109,7 +109,7 @@ protected:
     void writeSize(std::ostream&) const;
 
     /// Read the metadata from a stream.
-    virtual void readValue(std::istream&, Index32 numBytes) = 0;
+    virtual void readValue(std::istream&, Index32 numBytes);
     /// Write the metadata to a stream.
     virtual void writeValue(std::ostream&) const = 0;
 };
