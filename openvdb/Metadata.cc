@@ -138,6 +138,57 @@ Metadata::clearRegistry()
 
 ////////////////////////////////////////
 
+Name
+Metadata::typeName() const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'typeName' method not implemented.");
+}
+
+Metadata::Ptr
+Metadata::copy() const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'copy' method not implemented.");
+   return NULL;
+}
+
+void
+Metadata::copy(const Metadata& other)
+{
+   OPENVDB_THROW(TypeError, "Metadata 'copy' method not implemented."); 
+}
+
+std::string
+Metadata::str() const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'str' method not implemented.");
+   return "";
+}
+
+bool
+Metadata::asBool() const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'asBool' method not implemented.");
+   return false;
+}
+
+Index32
+Metadata::size() const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'size' method not implemented.");
+   return 0;
+}
+
+void
+Metadata::readValue(std::istream&, Index32)
+{
+   OPENVDB_THROW(TypeError, "Metadata 'readValue' method not implemented.");
+}
+
+void
+Metadata::writeValue(std::ostream&) const
+{
+   OPENVDB_THROW(TypeError, "Metadata 'writeValue' method not implemented.");
+}
 
 bool
 Metadata::operator==(const Metadata& other) const

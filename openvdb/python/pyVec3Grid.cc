@@ -33,6 +33,28 @@
 
 #include "pyGrid.h"
 
+#ifdef _MSC_VER
+namespace boost {
+    template <>
+    openvdb::OPENVDB_VERSION_NAME::Vec3SGrid const volatile *
+    get_pointer<openvdb::OPENVDB_VERSION_NAME::Vec3SGrid const volatile>(openvdb::OPENVDB_VERSION_NAME::Vec3SGrid const volatile * p) {
+        return p;
+    }
+#ifdef PY_OPENVDB_WRAP_ALL_GRID_TYPES
+    template <>
+    openvdb::OPENVDB_VERSION_NAME::Vec3IGrid const volatile *
+    get_pointer<openvdb::OPENVDB_VERSION_NAME::Vec3IGrid const volatile>(openvdb::OPENVDB_VERSION_NAME::Vec3IGrid const volatile * p) {
+        return p;
+    }
+    template <>
+    openvdb::OPENVDB_VERSION_NAME::Vec3DGrid const volatile *
+    get_pointer<openvdb::OPENVDB_VERSION_NAME::Vec3DGrid const volatile>(openvdb::OPENVDB_VERSION_NAME::Vec3DGrid const volatile * p) {
+        return p;
+    }
+#endif
+}
+#endif
+
 
 void exportVec3Grid();
 
