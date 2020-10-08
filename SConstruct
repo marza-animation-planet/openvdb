@@ -113,7 +113,7 @@ projs = [
     "defs": lib_defs + ["OPENVDB_DLL"],
     "cppflags": cppflags,
     "srcs": lib_srcs,
-    "deps": ["blosc_s"],
+    "deps": ["blosc-static"],
     "custom": lib_requires
   },
   {
@@ -126,7 +126,7 @@ projs = [
     "defs": lib_defs + ["OPENVDB_STATICLIB"],
     "cppflags": cppflags,
     "srcs": lib_srcs,
-    "deps": ["blosc_s"],
+    "deps": ["blosc-static"],
     "custom": lib_requires
   },
   {
@@ -163,7 +163,7 @@ projs = [
     "cppflags": cppflags,
     "incdirs": [".", "openvdb"] + glew_incdirs,
     "srcs": excons.glob("openvdb_maya/maya/*.cc") + glew_srcs,
-    "deps": ["blosc_s"],
+    "deps": ["blosc-static"],
     "staticlibs": ["openvdb_s"],
     "custom": [maya.Require,
                boost.Require(libs=boost_libs),
