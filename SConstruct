@@ -106,7 +106,7 @@ projs = [
     "type": "sharedlib",
     "desc": "OpenVDB shared library",
     "alias": "openvdb-shared",
-    "version": "6.1.0",
+    "version": "6.2.0",
     "install_name": "libopenvdb.5.dylib",
     "soname": "libopenvdb.so.5",
     "incdirs": [".", "openvdb"],
