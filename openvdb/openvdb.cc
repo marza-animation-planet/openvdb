@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -29,6 +29,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "openvdb.h"
+#include "io/DelayedLoadMetadata.h"
 //#ifdef OPENVDB_ENABLE_POINTS
 #include "points/PointDataGrid.h"
 //#endif
@@ -37,6 +38,16 @@
 #include <tbb/mutex.h>
 #ifdef OPENVDB_USE_BLOSC
 #include <blosc.h>
+#endif
+
+// If using an OPENVDB_ABI_VERSION_NUMBER that has been deprecated, issue an error
+// directive. This can be optionally suppressed by defining OPENVDB_USE_DEPRECATED_ABI.
+// Do this in the .cc of openvdb.cc to ensure this decision is made at the time of
+// building the core library
+#ifndef OPENVDB_USE_DEPRECATED_ABI
+    #if OPENVDB_ABI_VERSION_NUMBER <= 3
+        #error ABI <= 3 is deprecated, define OPENVDB_USE_DEPRECATED_ABI to suppress this error
+    #endif
 #endif
 
 namespace openvdb {
@@ -114,6 +125,9 @@ initialize()
     points::internal::initialize();
 //#endif
 
+    // Register delay load metadata
+    io::DelayedLoadMetadata::registerType();
+
 #ifdef OPENVDB_USE_BLOSC
     blosc_init();
     if (blosc_set_compressor("lz4") < 0) {
@@ -171,6 +185,6 @@ __pragma(warning(default:1711))
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
 
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

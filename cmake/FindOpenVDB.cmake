@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2019 DreamWorks Animation LLC
+# Copyright (c) DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -470,6 +470,7 @@ foreach(COMPONENT ${OpenVDB_FIND_COMPONENTS})
       INTERFACE_INCLUDE_DIRECTORIES "${OpenVDB_INCLUDE_DIR}"
       IMPORTED_LINK_DEPENDENT_LIBRARIES "${_OPENVDB_HIDDEN_DEPENDENCIES}" # non visible deps
       INTERFACE_LINK_LIBRARIES "${_OPENVDB_VISIBLE_DEPENDENCIES}" # visible deps (headers)
+      INTERFACE_COMPILE_FEATURES cxx_std_11
    )
   endif()
 endforeach()

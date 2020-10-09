@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2019 DreamWorks Animation LLC
+# Copyright (c) DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -78,6 +78,11 @@ else()
 endif()
 
 find_package(TBB ${MINIMUM_TBB_VERSION} REQUIRED COMPONENTS tbb)
+if(${Tbb_VERSION} VERSION_LESS FUTURE_MINIMUM_TBB_VERSION)
+  message(DEPRECATION "Support for TBB versions < ${FUTURE_MINIMUM_TBB_VERSION} "
+    "is deprecated and will be removed.")
+endif()
+
 find_package(ZLIB ${MINIMUM_ZLIB_VERSION} REQUIRED)
 
 if(USE_LOG4CPLUS)
@@ -104,6 +109,18 @@ find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS iostreams system
 
 if(UNIX)
   find_package(Threads REQUIRED)
+endif()
+
+if(CONCURRENT_MALLOC STREQUAL "Jemalloc")
+  find_package(Jemalloc)
+  if(NOT TARGET Jemalloc::jemalloc)
+    message(WARNING "Unable to find Jemalloc, attempting to fall back to TBB malloc.
+      It is recommended to use Jemalloc for optimum performance."
+    )
+    find_package(TBB ${MINIMUM_TBB_VERSION} REQUIRED COMPONENTS tbbmalloc tbbmalloc_proxy)
+  endif()
+elseif(CONCURRENT_MALLOC STREQUAL "Tbbmalloc")
+  find_package(TBB ${MINIMUM_TBB_VERSION} REQUIRED COMPONENTS tbbmalloc tbbmalloc_proxy)
 endif()
 
 # Set deps. Note that the order here is important. If we're building against
@@ -142,9 +159,19 @@ list(APPEND OPENVDB_CORE_DEPENDENT_LIBS
   TBB::tbb
   ZLIB::ZLIB
 )
+
 if(UNIX)
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Threads::Threads)
+endif()
+
+if(TARGET Jemalloc::jemalloc)
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Jemalloc::jemalloc)
+endif()
+
+if(TARGET TBB::tbbmalloc AND TARGET TBB::tbbmalloc_proxy)
   list(APPEND OPENVDB_CORE_DEPENDENT_LIBS
-    Threads::Threads
+    TBB::tbbmalloc
+    TBB::tbbmalloc_proxy
   )
 endif()
 
@@ -169,6 +196,7 @@ set(OPENVDB_LIBRARY_SOURCE_FILES
   Grid.cc
   io/Archive.cc
   io/Compression.cc
+  io/DelayedLoadMetadata.cc
   io/File.cc
   io/GridDescriptor.cc
   io/Queue.cc
@@ -207,6 +235,7 @@ set(OPENVDB_LIBRARY_INCLUDE_FILES
 set(OPENVDB_LIBRARY_IO_INCLUDE_FILES
   io/Archive.h
   io/Compression.h
+  io/DelayedLoadMetadata.h
   io/File.h
   io/GridDescriptor.h
   io/io.h
@@ -270,6 +299,7 @@ set(OPENVDB_LIBRARY_TOOLS_INCLUDE_FILES
   tools/DenseSparseTools.h
   tools/Diagnostics.h
   tools/Filter.h
+  tools/FindActiveValues.h
   tools/GridOperators.h
   tools/GridTransformer.h
   tools/Interpolation.h

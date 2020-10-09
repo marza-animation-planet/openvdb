@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2019 DreamWorks Animation LLC
+# Copyright (c) DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -47,6 +47,8 @@ IMPORTED Targets
   The tbb library target.
 ``TBB::tbbmalloc``
   The tbbmalloc library target.
+``TBB::tbbmalloc_proxy``
+  The tbbmalloc_proxy library target.
 
 Result Variables
 ^^^^^^^^^^^^^^^^
@@ -106,6 +108,7 @@ mark_as_advanced(
 set(_TBB_COMPONENT_LIST
   tbb
   tbbmalloc
+  tbbmalloc_proxy
 )
 
 if(TBB_FIND_COMPONENTS)

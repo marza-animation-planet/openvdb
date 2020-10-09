@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -670,6 +670,10 @@ createPointDataGrid(const PointIndexGridT& pointIndexGrid, const PositionArrayT&
     const size_t positionIndex = descriptor->find("P");
     assert(positionIndex != AttributeSet::INVALID_POS);
 
+    // acquire registry lock to avoid locking when appending attributes in parallel
+
+    AttributeArray::ScopedRegistryLock lock;
+
     // populate position attribute
 
     LeafManagerT leafManager(*treePtr);
@@ -684,7 +688,7 @@ createPointDataGrid(const PointIndexGridT& pointIndexGrid, const PositionArrayT&
             // initialise the attribute storage
 
             Index pointCount(static_cast<Index>(pointIndexLeaf->indices().size()));
-            leaf.initializeAttributes(descriptor, pointCount);
+            leaf.initializeAttributes(descriptor, pointCount, &lock);
 
             // create write handle for position
 
@@ -1125,6 +1129,6 @@ convertPointDataGridGroup(  Group& group,
 
 #endif // OPENVDB_POINTS_POINT_CONVERSION_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

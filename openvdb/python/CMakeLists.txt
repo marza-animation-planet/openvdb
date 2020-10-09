@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2019 DreamWorks Animation LLC
+# Copyright (c) DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -108,6 +108,12 @@ else()
   list(APPEND OPENVDB_PYTHON_DEPS Python::Python)
 endif()
 
+if(USE_NUMPY)
+  if(Python_NumPy_VERSION VERSION_LESS FUTURE_MINIMUM_NUMPY_VERSION)
+    message(DEPRECATION "Support for NumPy versions < ${FUTURE_MINIMUM_NUMPY_VERSION} "
+      "is deprecated and will be removed.")
+  endif()
+endif()
 
 # Boost python handling - try and find both python and pythonXx (version suffixed).
 # Prioritize the version suffixed library, failing if neither exist.
@@ -182,8 +188,15 @@ target_link_libraries(pyopenvdb
 )
 
 set_target_properties(pyopenvdb PROPERTIES
-  PREFIX ""
+  PREFIX ""  # no 'lib' prefix
 )
+
+if(UNIX)
+  # must be .so (not .dylib)
+  set_target_properties(pyopenvdb PROPERTIES
+    SUFFIX ".so"
+  )
+endif()
 
 if(OPENVDB_ENABLE_RPATH)
   # @todo There is probably a better way to do this for imported targets

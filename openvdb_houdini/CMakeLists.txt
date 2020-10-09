@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2019 DreamWorks Animation LLC
+# Copyright (c) DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -75,6 +75,24 @@ option(OPENVDB_HOUDINI_ENABLE_SESI_TAG [=[
 Enable SESI tag information on the OpenVDB DSOs. This is legacy functionality for
 older Houdini versions and will be removed in Houdini 18. ]=] OFF)
 
+set(_OPENVDB_HOUDINI_OPHIDE_POLICY_OPTIONS none aswf native)
+if(NOT OPENVDB_HOUDINI_OPHIDE_POLICY)
+  set(OPENVDB_HOUDINI_OPHIDE_POLICY none CACHE STRING
+    "Choose an ophide policy, options are: none aswf native. If
+    OPENVDB_HOUDINI_OPHIDE_POLICY is set to 'aswf', hide AWSF SOPs for which a
+    native Houdini equivalent exists. If $OPENVDB_OPHIDE_POLICY is set to
+    'native', hide native Houdini SOPs for which an ASWF equivalent exists.
+    Otherwise show both SOPs (the default). Note that the environment variable
+    OPENVDB_OPHIDE_POLICY can be used to override this flag at runtime." FORCE
+  )
+else()
+  string(TOLOWER ${OPENVDB_HOUDINI_OPHIDE_POLICY} OPENVDB_HOUDINI_OPHIDE_POLICY)
+  if (NOT ${OPENVDB_HOUDINI_OPHIDE_POLICY} IN_LIST _OPENVDB_HOUDINI_OPHIDE_POLICY_OPTIONS)
+    message(WARNING "Unrecognized value for OPENVDB_HOUDINI_OPHIDE_POLICY, using none instead.")
+    set(OPENVDB_HOUDINI_OPHIDE_POLICY none CACHE STRING FORCE)
+  endif()
+endif()
+
 mark_as_advanced(
   OPENVDB_HOUDINI_ENABLE_SESI_TAG
 )
@@ -104,6 +122,9 @@ set(OPENVDB_HOUDINI_INSTALL_PREFIX ${HOUDINI_INSTALL_LOCATION}
 
 message(STATUS "Houdini base install path: ${OPENVDB_HOUDINI_INSTALL_PREFIX}")
 
+set(OPENVDB_HOUDINI_PYTHONRC_DIR ${HOUDINI_INSTALL_LOCATION}/python2.7libs
+    CACHE PATH "Install path for the OpenVDB Houdini startup script")
+
 #########################################################################
 
 # Collect and configure lib dependencies
@@ -129,9 +150,9 @@ set(OPENVDB_HOUDINI_DEPENDENT_LIBS
 set(OPENVDB_HOUDINI_UTILS_DIR ${PROJECT_BINARY_DIR}/houdini_utils)
 file(MAKE_DIRECTORY ${OPENVDB_HOUDINI_UTILS_DIR})
 file(COPY
-    houdini/geometry.h
-    houdini/OP_NodeChain.h
-    houdini/ParmFactory.h
+    geometry.h
+    OP_NodeChain.h
+    ParmFactory.h
   DESTINATION
     ${OPENVDB_HOUDINI_UTILS_DIR}
 )
@@ -140,35 +161,35 @@ file(COPY
 set(OPENVDB_HOUDINI_LOCAL_DIR ${PROJECT_BINARY_DIR}/openvdb_houdini)
 file(MAKE_DIRECTORY ${OPENVDB_HOUDINI_LOCAL_DIR})
 file(COPY
-    houdini/AttributeTransferUtil.h
-    houdini/GEO_PrimVDB.h
-    houdini/GeometryUtil.h
-    houdini/GT_GEOPrimCollectVDB.h
-    houdini/GU_PrimVDB.h
-    houdini/GU_VDBPointTools.h
-    houdini/PointUtils.h
-    houdini/SOP_NodeVDB.h
-    houdini/SOP_VDBVerbUtils.h
-    houdini/UT_VDBTools.h
-    houdini/UT_VDBUtils.h
-    houdini/Utils.h
+    AttributeTransferUtil.h
+    GEO_PrimVDB.h
+    GeometryUtil.h
+    GT_GEOPrimCollectVDB.h
+    GU_PrimVDB.h
+    GU_VDBPointTools.h
+    PointUtils.h
+    SOP_NodeVDB.h
+    SOP_VDBVerbUtils.h
+    UT_VDBTools.h
+    UT_VDBUtils.h
+    Utils.h
   DESTINATION
     ${OPENVDB_HOUDINI_LOCAL_DIR}
 )
 
 add_library(openvdb_houdini SHARED
-  houdini/GEO_PrimVDB.cc
-  houdini/GEO_VDBTranslator.cc
-  houdini/geometry.cc
-  houdini/GeometryUtil.cc
-  houdini/GT_GEOPrimCollectVDB.cc
-  houdini/GU_PrimVDB.cc
-  houdini/GU_VDBPointTools.cc
-  houdini/ParmFactory.cc
-  houdini/PointUtils.cc
-  houdini/SOP_NodeVDB.cc
-  houdini/UT_VDBUtils.cc
-  houdini/Utils.cc
+  GEO_PrimVDB.cc
+  GEO_VDBTranslator.cc
+  geometry.cc
+  GeometryUtil.cc
+  GT_GEOPrimCollectVDB.cc
+  GU_PrimVDB.cc
+  GU_VDBPointTools.cc
+  ParmFactory.cc
+  PointUtils.cc
+  SOP_NodeVDB.cc
+  UT_VDBUtils.cc
+  Utils.cc
 )
 
 target_include_directories(openvdb_houdini PUBLIC
@@ -212,6 +233,11 @@ set_target_properties(openvdb_houdini
     SOVERSION ${OpenVDB_MAJOR_VERSION}.${OpenVDB_MINOR_VERSION}
     VERSION ${OpenVDB_MAJOR_VERSION}.${OpenVDB_MINOR_VERSION}.${OpenVDB_PATCH_VERSION}
 )
+
+if (OPENVDB_HOUDINI_OPHIDE_POLICY AND NOT ${OPENVDB_HOUDINI_OPHIDE_POLICY} STREQUAL "none")
+  target_compile_definitions(openvdb_houdini PRIVATE
+    "-DOPENVDB_OPHIDE_POLICY=${OPENVDB_HOUDINI_OPHIDE_POLICY}")
+endif()
 
 set(OPENVDB_DSO_NAMES
   GR_PrimVDBPoints
@@ -275,7 +301,7 @@ message(STATUS "Configuring Houdini DSOs...")
 
 foreach(DSO_NAME ${OPENVDB_DSO_NAMES})
 
-  add_library(${DSO_NAME} SHARED houdini/${DSO_NAME}.cc)
+  add_library(${DSO_NAME} SHARED ${DSO_NAME}.cc)
   target_link_libraries(${DSO_NAME} openvdb_houdini)
 
   # Call houdini_configure_target to setup the sesi tag information. We set
@@ -364,11 +390,18 @@ foreach(DSO_NAME ${OPENVDB_DSO_NAMES})
 endforeach()
 
 install(FILES
-  houdini/SOP_OpenVDB.svg
+  SOP_OpenVDB.svg
   DESTINATION ${OPENVDB_HOUDINI_INSTALL_PREFIX}/config/Icons
 )
 
 install(FILES
-  houdini/DW_OpenVDBRasterizePoints.cmd
+  DW_OpenVDBRasterizePoints.cmd
   DESTINATION ${OPENVDB_HOUDINI_INSTALL_PREFIX}/scripts/sop
 )
+
+if(OPENVDB_INSTALL_HOUDINI_PYTHONRC)
+  install(FILES
+    pythonrc.py
+    DESTINATION ${OPENVDB_HOUDINI_PYTHONRC_DIR}
+  )
+endif()

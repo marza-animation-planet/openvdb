@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -320,7 +320,11 @@ struct PointIndexConverter
     /// @return nullptr if the given Python object is not convertible to the PointIndex.
     static void* convertible(PyObject* obj)
     {
+#if PY_MAJOR_VERSION >= 3
+        if (!PyLong_Check(obj)) return nullptr; // not a Python integer
+#else
         if (!PyInt_Check(obj)) return nullptr; // not a Python integer
+#endif
         return obj;
     }
 
@@ -336,8 +340,11 @@ struct PointIndexConverter
 
         // Extract the PointIndex from the python integer
         PointIndexT* index = static_cast<PointIndexT*>(storage);
-
+#if PY_MAJOR_VERSION >= 3
+        *index = static_cast<IntType>(PyLong_AsLong(obj));
+#else
         *index = static_cast<IntType>(PyInt_AsLong(obj));
+#endif
     }
 
     /// Register both the PointIndex-to-integer and the integer-to-PointIndex converters.
@@ -977,6 +984,6 @@ BOOST_PYTHON_MODULE(PY_OPENVDB_MODULE_NAME)
 
 } // BOOST_PYTHON_MODULE
 
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

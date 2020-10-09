@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -216,10 +216,10 @@ using PointDataIndex64 = PointIndex<Index64, 1>;
 /// parameter is a specialization of the class template given in the second
 /// template parameter
 template <typename T, template <typename...> class Template>
-struct IsSpecializationOf : std::false_type {};
+struct IsSpecializationOf: public std::false_type {};
 
 template <typename... Args, template <typename...> class Template>
-struct IsSpecializationOf<Template<Args...>, Template> : std::true_type {};
+struct IsSpecializationOf<Template<Args...>, Template>: public std::true_type {};
 
 
 ////////////////////////////////////////
@@ -807,6 +807,6 @@ class PartialCreate {};
 
 #endif // OPENVDB_TYPES_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2019 DreamWorks Animation LLC
+// Copyright (c) DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
