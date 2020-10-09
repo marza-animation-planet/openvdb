@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -148,7 +148,11 @@ public:
 
     template <typename ValueType, typename CodecType> friend class AttributeHandle;
 
-    AttributeArray() : mPageHandle() { }
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    AttributeArray(): mPageHandle() { mOutOfCore = 0; }
+#else
+    AttributeArray(): mPageHandle() {}
+#endif
     virtual ~AttributeArray()
     {
         // if this AttributeArray has been partially read, zero the compressed bytes,
@@ -159,7 +163,7 @@ public:
     AttributeArray(const AttributeArray& rhs)
         : mIsUniform(rhs.mIsUniform)
         , mFlags(rhs.mFlags)
-        , mSerializationFlags(rhs.mSerializationFlags)
+        , mUsePagedRead(rhs.mUsePagedRead)
         , mOutOfCore(rhs.mOutOfCore)
         , mPageHandle()
     {
@@ -173,7 +177,7 @@ public:
         if (mFlags & PARTIALREAD)       mCompressedBytes = 0;
         mIsUniform = rhs.mIsUniform;
         mFlags = rhs.mFlags;
-        mSerializationFlags = rhs.mSerializationFlags;
+        mUsePagedRead = rhs.mUsePagedRead;
         mOutOfCore = rhs.mOutOfCore;
         if (mFlags & PARTIALREAD)       mCompressedBytes = rhs.mCompressedBytes;
         else if (rhs.mPageHandle)       mPageHandle = rhs.mPageHandle->copy();
@@ -188,9 +192,11 @@ public:
     AttributeArray& operator=(AttributeArray&&) = default;
 
     /// Return a copy of this attribute.
+    /// @note This method is thread-safe.
     virtual AttributeArray::Ptr copy() const = 0;
 
     /// Return an uncompressed copy of this attribute (will return a copy if not compressed).
+    /// @note This method is thread-safe.
     virtual AttributeArray::Ptr copyUncompressed() const = 0;
 
     /// Return the number of elements in this array.
@@ -285,9 +291,13 @@ public:
     /// and both value types are floating-point or both integer.
     /// @note It is possible to use this method to write to a uniform target array
     /// if the iterator does not have non-zero target indices.
+    /// @note This method is not thread-safe, it must be guaranteed that this array is not
+    /// concurrently modified by another thread and that the source array is also not modified.
     template<typename IterT>
     void copyValuesUnsafe(const AttributeArray& sourceArray, const IterT& iter);
     /// @brief Like copyValuesUnsafe(), but if @a compact is true, attempt to collapse this array.
+    /// @note This method is not thread-safe, it must be guaranteed that this array is not
+    /// concurrently modified by another thread and that the source array is also not modified.
     template<typename IterT>
     void copyValues(const AttributeArray& sourceArray, const IterT& iter, bool compact = true);
 #endif
@@ -414,19 +424,19 @@ protected:
 
     size_t mCompressedBytes = 0;
     uint8_t mFlags = 0;
-    uint8_t mSerializationFlags = 0;
+    uint8_t mUsePagedRead = 0;
 #if OPENVDB_ABI_VERSION_NUMBER >= 5
-    tbb::atomic<Index32> mOutOfCore = 0; // interpreted as bool
+    tbb::atomic<Index32> mOutOfCore; // interpreted as bool
 #endif
     compression::PageHandle::Ptr mPageHandle;
 
 #else // #if OPENVDB_ABI_VERSION_NUMBER < 6
 
     bool mIsUniform = true;
-    tbb::spin_mutex mMutex;
+    mutable tbb::spin_mutex mMutex;
     uint8_t mFlags = 0;
-    uint8_t mSerializationFlags = 0;
-    tbb::atomic<Index32> mOutOfCore = 0; // interpreted as bool
+    uint8_t mUsePagedRead = 0;
+    tbb::atomic<Index32> mOutOfCore; // interpreted as bool
     /// used for out-of-core, paged reading
     union {
         compression::PageHandle::Ptr mPageHandle;
@@ -589,21 +599,25 @@ public:
     /// Default constructor, always constructs a uniform attribute.
     explicit TypedAttributeArray(Index n = 1, Index strideOrTotalSize = 1, bool constantStride = true,
         const ValueType& uniformValue = zeroVal<ValueType>());
-    /// Deep copy constructor (optionally decompress during copy).
+    /// Deep copy constructor.
+    /// @note not thread-safe, use TypedAttributeArray::copy() to ensure thread-safety
     TypedAttributeArray(const TypedAttributeArray&, bool uncompress = false);
     /// Deep copy assignment operator.
+    /// @note this operator is thread-safe.
     TypedAttributeArray& operator=(const TypedAttributeArray&);
     /// Move constructor disabled.
     TypedAttributeArray(TypedAttributeArray&&) = delete;
     /// Move assignment operator disabled.
     TypedAttributeArray& operator=(TypedAttributeArray&&) = delete;
 
-    virtual ~TypedAttributeArray() { this->deallocate(); }
+    ~TypedAttributeArray() override { this->deallocate(); }
 
     /// Return a copy of this attribute.
+    /// @note This method is thread-safe.
     AttributeArray::Ptr copy() const override;
 
     /// Return an uncompressed copy of this attribute (will just return a copy if not compressed).
+    /// @note This method is thread-safe.
     AttributeArray::Ptr copyUncompressed() const override;
 
     /// Return a new attribute array of the given length @a n and @a stride with uniform value zero.
@@ -818,7 +832,7 @@ private:
     Index                               mStrideOrTotalSize;
 #if OPENVDB_ABI_VERSION_NUMBER < 6 // as of ABI=6, this data lives in the base class to reduce memory
     bool                                mIsUniform = true;
-    tbb::spin_mutex                     mMutex;
+    mutable tbb::spin_mutex             mMutex;
 #endif
 }; // class TypedAttributeArray
 
@@ -1105,6 +1119,12 @@ void AttributeArray::copyValues(const AttributeArray& sourceArray, const IterT& 
     // if the target array is uniform, expand it first
     this->expand();
 
+    // TODO: Acquire mutex locks for source and target arrays to ensure that
+    // value copying is always thread-safe. Note that the unsafe method will be
+    // faster, but can only be used if neither the source or target arrays are
+    // modified during copying. Note that this will require a new private
+    // virtual method with ABI=7 to access the mutex from the derived class.
+
     this->doCopyValues(sourceArray, iter, true);
 
     // attempt to compact target array
@@ -1172,12 +1192,14 @@ TypedAttributeArray<ValueType_, Codec_>&
 TypedAttributeArray<ValueType_, Codec_>::operator=(const TypedAttributeArray& rhs)
 {
     if (&rhs != this) {
+        // lock both the source and target arrays to ensure thread-safety
         tbb::spin_mutex::scoped_lock lock(mMutex);
+        tbb::spin_mutex::scoped_lock rhsLock(rhs.mMutex);
 
         this->deallocate();
 
         mFlags = rhs.mFlags;
-        mSerializationFlags = rhs.mSerializationFlags;
+        mUsePagedRead = rhs.mUsePagedRead;
         mSize = rhs.mSize;
         mStrideOrTotalSize = rhs.mStrideOrTotalSize;
         mIsUniform = rhs.mIsUniform;
@@ -1257,6 +1279,7 @@ template<typename ValueType_, typename Codec_>
 AttributeArray::Ptr
 TypedAttributeArray<ValueType_, Codec_>::copy() const
 {
+    tbb::spin_mutex::scoped_lock lock(mMutex);
     return AttributeArray::Ptr(new TypedAttributeArray<ValueType, Codec>(*this));
 }
 
@@ -1265,6 +1288,7 @@ template<typename ValueType_, typename Codec_>
 AttributeArray::Ptr
 TypedAttributeArray<ValueType_, Codec_>::copyUncompressed() const
 {
+    tbb::spin_mutex::scoped_lock lock(mMutex);
     return AttributeArray::Ptr(new TypedAttributeArray<ValueType, Codec>(*this, /*decompress = */true));
 }
 
@@ -1689,7 +1713,6 @@ TypedAttributeArray<ValueType_, Codec_>::readMetadata(std::istream& is)
 
     uint8_t serializationFlags = uint8_t(0);
     is.read(reinterpret_cast<char*>(&serializationFlags), sizeof(uint8_t));
-    mSerializationFlags = serializationFlags;
 
     Index size = Index(0);
     is.read(reinterpret_cast<char*>(&size), sizeof(Index));
@@ -1701,19 +1724,20 @@ TypedAttributeArray<ValueType_, Codec_>::readMetadata(std::istream& is)
     }
     // error if an unknown serialization flag has been set,
     // as this will adjust the layout of the data and corrupt the ability to read
-    if (mSerializationFlags >= 0x10) {
+    if (serializationFlags >= 0x10) {
         OPENVDB_THROW(IoError, "Unknown attribute serialization flags for VDB file format.");
     }
 
-    // read uniform and compressed state
+    // set uniform, compressed and page read state
 
-    mIsUniform = mSerializationFlags & WRITEUNIFORM;
+    mIsUniform = serializationFlags & WRITEUNIFORM;
+    mUsePagedRead = serializationFlags & WRITEPAGED;
     mCompressedBytes = bytes;
     mFlags |= PARTIALREAD; // mark data as having been partially read
 
     // read strided value (set to 1 if array is not strided)
 
-    if (mSerializationFlags & WRITESTRIDED) {
+    if (serializationFlags & WRITESTRIDED) {
         Index stride = Index(0);
         is.read(reinterpret_cast<char*>(&stride), sizeof(Index));
         mStrideOrTotalSize = stride;
@@ -1728,7 +1752,7 @@ template<typename ValueType_, typename Codec_>
 void
 TypedAttributeArray<ValueType_, Codec_>::readBuffers(std::istream& is)
 {
-    if ((mSerializationFlags & WRITEPAGED)) {
+    if (mUsePagedRead) {
         // use readBuffers(PagedInputStream&) for paged buffers
         OPENVDB_THROW(IoError, "Cannot read paged AttributeArray buffers.");
     }
@@ -1760,11 +1784,6 @@ TypedAttributeArray<ValueType_, Codec_>::readBuffers(std::istream& is)
     // set data to buffer
 
     mData.reset(reinterpret_cast<StorageType*>(buffer.release()));
-
-    // clear all write flags
-
-    if (mIsUniform)     mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEMEMCOMPRESS & ~WRITEPAGED);
-    else                mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEPAGED);
 }
 
 
@@ -1772,7 +1791,7 @@ template<typename ValueType_, typename Codec_>
 void
 TypedAttributeArray<ValueType_, Codec_>::readPagedBuffers(compression::PagedInputStream& is)
 {
-    if (!(mSerializationFlags & WRITEPAGED)) {
+    if (!mUsePagedRead) {
         if (!is.sizeOnly()) this->readBuffers(is.getInputStream());
         return;
     }
@@ -1806,10 +1825,9 @@ TypedAttributeArray<ValueType_, Codec_>::readPagedBuffers(compression::PagedInpu
         mData.reset(reinterpret_cast<StorageType*>(buffer.release()));
     }
 
-    // clear all write flags
+    // clear page state
 
-    if (mIsUniform)     mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEMEMCOMPRESS & ~WRITEPAGED);
-    else                mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEPAGED);
+    mUsePagedRead = 0;
 }
 
 
@@ -1969,6 +1987,7 @@ TypedAttributeArray<ValueType_, Codec_>::doLoadUnsafe(const bool /*compression*/
     auto* self = const_cast<TypedAttributeArray<ValueType_, Codec_>*>(this);
 
     assert(self->mPageHandle);
+    assert(!(self->mFlags & PARTIALREAD));
 
     std::unique_ptr<char[]> buffer = self->mPageHandle->read();
 
@@ -1983,7 +2002,6 @@ TypedAttributeArray<ValueType_, Codec_>::doLoadUnsafe(const bool /*compression*/
 #else
     self->mFlags &= uint8_t(~OUTOFCORE);
 #endif
-    self->mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEMEMCOMPRESS & ~WRITEPAGED);
 }
 
 
@@ -2011,7 +2029,7 @@ TypedAttributeArray<ValueType_, Codec_>::isEqual(const AttributeArray& other) co
     if(this->mSize != otherT->mSize ||
        this->mStrideOrTotalSize != otherT->mStrideOrTotalSize ||
        this->mIsUniform != otherT->mIsUniform ||
-       *this->sTypeName != *otherT->sTypeName) return false;
+       this->attributeType() != this->attributeType()) return false;
 
     this->doLoad();
     otherT->doLoad();
@@ -2301,6 +2319,6 @@ AttributeArray& AttributeWriteHandle<ValueType, CodecType>::array()
 
 #endif // OPENVDB_POINTS_ATTRIBUTE_ARRAY_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

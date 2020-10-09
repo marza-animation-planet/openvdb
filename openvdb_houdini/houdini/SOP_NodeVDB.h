@@ -74,17 +74,11 @@ public:
     SOP_NodeVDB(OP_Network*, const char*, OP_Operator*);
     ~SOP_NodeVDB() override = default;
 
-#if (UT_MAJOR_VERSION_INT < 16)
-    void fillInfoTreeNodeSpecific(UT_InfoTree&, fpreal time) override;
-#else
     void fillInfoTreeNodeSpecific(UT_InfoTree&, const OP_NodeInfoTreeParms&) override;
-#endif
     void getNodeSpecificInfoText(OP_Context&, OP_NodeInfoParms&) override;
 
-#if UT_MAJOR_VERSION_INT >= 16
     /// @brief Return this node's registered verb.
     const SOP_NodeVerb* cookVerb() const override;
-#endif
 
     /// @brief Retrieve a group from a geometry detail by parsing a pattern
     /// (typically, the value of a Group parameter belonging to this node).
@@ -167,6 +161,8 @@ protected:
     /// @warning No attempt to call duplicateSource() or inputGeo() should be made after
     /// calling this method, as there will be no data on the input stream if isSourceStealable()
     /// returns @c true.
+    /// @deprecated     verbification renders this redundant
+    OPENVDB_DEPRECATED
     OP_ERROR duplicateSourceStealable(const unsigned index,
         OP_Context& context, GU_Detail **pgdp, GU_DetailHandle& gdh, bool clean = true);
 
@@ -187,6 +183,8 @@ protected:
     ///
     /// @param index    the index of the input from which to perform this operation
     /// @param context  the current SOP context is used for cook time for network traversal
+    /// @deprecated     verbification renders this redundant
+    OPENVDB_DEPRECATED
     OP_ERROR duplicateSourceStealable(const unsigned index, OP_Context& context);
 
     /// @}
@@ -201,6 +199,8 @@ private:
     ///
     /// @param index    the index of the input from which to perform this operation
     /// @param context  the current SOP context is used for cook time for network traversal
+    /// @deprecated     verbification renders this redundant
+    OPENVDB_DEPRECATED
     bool isSourceStealable(const unsigned index, OP_Context& context) const;
 }; // class SOP_NodeVDB
 

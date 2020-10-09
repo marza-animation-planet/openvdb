@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -37,27 +37,15 @@
 #include <openvdb_houdini/SOP_NodeVDB.h>
 #include <openvdb/tools/VectorTransformer.h> // for transformVectors()
 #include <UT/UT_Interrupt.h>
-#if UT_VERSION_INT >= 0x10050000 // 16.5.0 or later
 #include <hboost/math/constants/constants.hpp>
-#else
-#include <boost/math/constants/constants.hpp>
-#endif
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-#if UT_MAJOR_VERSION_INT >= 16
-#define VDB_COMPILABLE_SOP 1
-#else
-#define VDB_COMPILABLE_SOP 0
-#endif
 
 namespace hvdb = openvdb_houdini;
 namespace hutil = houdini_utils;
-#if UT_VERSION_INT < 0x10050000 // earlier than 16.5.0
-namespace hboost = boost;
-#endif
 
 
 class SOP_OpenVDB_Transform: public hvdb::SOP_NodeVDB
@@ -68,12 +56,7 @@ public:
 
     static OP_Node* factory(OP_Network*, const char* name, OP_Operator*);
 
-#if VDB_COMPILABLE_SOP
     class Cache: public SOP_VDBCacheOptions { OP_ERROR cookVDBSop(OP_Context&) override; };
-#else
-protected:
-    OP_ERROR cookVDBSop(OP_Context&) override;
-#endif
 };
 
 
@@ -141,11 +124,9 @@ newSopOperator(OP_OperatorTable* table)
             " in accordance with those VDBs' __Vector Type__ attributes (as set,"
             " for example, with the [OpenVDB Create|Node:sop/DW_OpenVDBCreate] node)."));
 
-    hvdb::OpenVDBOpFactory("OpenVDB Transform", SOP_OpenVDB_Transform::factory, parms, *table)
+    hvdb::OpenVDBOpFactory("VDB Transform", SOP_OpenVDB_Transform::factory, parms, *table)
         .addInput("VDBs to transform")
-#if VDB_COMPILABLE_SOP
         .setVerb(SOP_NodeVerb::COOK_INPLACE, []() { return new SOP_OpenVDB_Transform::Cache; })
-#endif
         .setDocumentation("\
 #icon: COMMON/openvdb\n\
 #tags: vdb\n\
@@ -201,18 +182,12 @@ struct VecXformOp
 
 
 OP_ERROR
-VDB_NODE_OR_CACHE(VDB_COMPILABLE_SOP, SOP_OpenVDB_Transform)::cookVDBSop(OP_Context& context)
+SOP_OpenVDB_Transform::Cache::cookVDBSop(OP_Context& context)
 {
     try {
-#if !VDB_COMPILABLE_SOP
-        hutil::ScopedInputLock lock(*this, context);
-
-        // This does a shallow copy of VDB-grids and deep copy of native Houdini primitives.
-        lock.markInputUnlocked(0);
-        duplicateSourceStealable(0, context);
-#endif
-
+        using MapBase = openvdb::math::MapBase;
         using AffineMap = openvdb::math::AffineMap;
+        using NonlinearFrustumMap = openvdb::math::NonlinearFrustumMap;
         using Transform = openvdb::math::Transform;
 
         const fpreal time = context.getTime();
@@ -325,13 +300,32 @@ VDB_NODE_OR_CACHE(VDB_COMPILABLE_SOP, SOP_OpenVDB_Transform)::cookVDBSop(OP_Cont
             // No need to make the grid unique at this point, since we might not need
             // to modify its voxel data.
             hvdb::Grid& grid = vdb->getGrid();
+            const auto& transform = grid.constTransform();
 
             // Merge the transform's current affine representation with the new affine map.
             AffineMap::Ptr compound(
-                new AffineMap(*grid.transform().baseMap()->getAffineMap(), map));
+                new AffineMap(*transform.baseMap()->getAffineMap(), map));
 
-            // Simplify the affine map and replace the transform.
-            grid.setTransform(Transform::Ptr(new Transform(openvdb::math::simplify(compound))));
+            // Simplify the affine compound map
+            auto affineMap = openvdb::math::simplify(compound);
+
+            Transform::Ptr newTransform;
+            if (transform.isLinear()) {
+                newTransform.reset(new Transform(affineMap));
+            }
+            else {
+                auto frustumMap = transform.constMap<NonlinearFrustumMap>();
+                if (!frustumMap) {
+                    throw std::runtime_error{"Unsupported non-linear map - " + transform.mapType()};
+                }
+                // Create a new NonlinearFrustumMap that replaces the affine map with the transformed one.
+                MapBase::Ptr newFrustumMap(new NonlinearFrustumMap(
+                    frustumMap->getBBox(), frustumMap->getTaper(), frustumMap->getDepth(), affineMap));
+                newTransform.reset(new Transform(newFrustumMap));
+            }
+
+            // Replace the transform.
+            grid.setTransform(newTransform);
 
             // Update the primitive's vertex position.
             /// @todo Need a simpler way to do this.
@@ -353,6 +347,6 @@ VDB_NODE_OR_CACHE(VDB_COMPILABLE_SOP, SOP_OpenVDB_Transform)::cookVDBSop(OP_Cont
     return error();
 }
 
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

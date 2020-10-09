@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -71,29 +71,10 @@
 
 #include "Platform.h"
 
-/// @name Utilities
-/// @{
-/// @cond OPENVDB_VERSION_INTERNAL
-#define OPENVDB_PREPROC_STRINGIFY_(x) #x
-/// @endcond
-/// @brief Return @a x as a string literal.  If @a x is a macro,
-/// return its value as a string literal.
-/// @hideinitializer
-#define OPENVDB_PREPROC_STRINGIFY(x) OPENVDB_PREPROC_STRINGIFY_(x)
-
-/// @cond OPENVDB_VERSION_INTERNAL
-#define OPENVDB_PREPROC_CONCAT_(x, y) x ## y
-/// @endcond
-/// @brief Form a new token by concatenating two existing tokens.
-/// If either token is a macro, concatenate its value.
-/// @hideinitializer
-#define OPENVDB_PREPROC_CONCAT(x, y) OPENVDB_PREPROC_CONCAT_(x, y)
-/// @}
-
 
 // Library major, minor and patch version numbers
 #define OPENVDB_LIBRARY_MAJOR_VERSION_NUMBER 6
-#define OPENVDB_LIBRARY_MINOR_VERSION_NUMBER 0
+#define OPENVDB_LIBRARY_MINOR_VERSION_NUMBER 1
 #define OPENVDB_LIBRARY_PATCH_VERSION_NUMBER 0
 
 // If OPENVDB_ABI_VERSION_NUMBER is already defined (e.g., via -DOPENVDB_ABI_VERSION_NUMBER=N)
@@ -111,6 +92,14 @@
         #define OPENVDB_ABI_VERSION_NUMBER 3
     #else
         #define OPENVDB_ABI_VERSION_NUMBER OPENVDB_LIBRARY_MAJOR_VERSION_NUMBER
+    #endif
+#endif
+
+// If using an OPENVDB_ABI_VERSION_NUMBER that has been deprecated, issue an error
+// directive.  This can be optionally suppressed by defining OPENVDB_USE_DEPRECATED_ABI.
+#ifndef OPENVDB_USE_DEPRECATED_ABI
+    #if OPENVDB_ABI_VERSION_NUMBER <= 3
+        #error ABI <= 3 is deprecated, define OPENVDB_USE_DEPRECATED_ABI to suppress this error
     #endif
 #endif
 
@@ -174,7 +163,7 @@
 
 /// By default, the @b OPENVDB_REQUIRE_VERSION_NAME macro is undefined, and
 /// symbols from the version namespace are promoted to the top-level namespace
-/// so that, for example, @b openvdb::v6_0::io::File can be referred to
+/// so that, for example, @b openvdb::v5_0::io::File can be referred to
 /// simply as @b openvdb::io::File.
 ///
 /// When @b OPENVDB_REQUIRE_VERSION_NAME is defined, symbols must be
@@ -252,6 +241,6 @@ struct VersionId {
 
 #endif // OPENVDB_VERSION_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

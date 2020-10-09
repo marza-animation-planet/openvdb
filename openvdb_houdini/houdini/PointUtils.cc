@@ -50,6 +50,7 @@
 #include <PRM/PRM_SpareData.h>
 #include <SOP/SOP_Node.h>
 #include <UT/UT_Version.h>
+#include <UT/UT_UniquePtr.h>
 
 #include <algorithm>
 #include <map>
@@ -59,12 +60,6 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-
-#if UT_VERSION_INT >= 0x0f050000 // 15.5.0 or later
-#include <UT/UT_UniquePtr.h>
-#else
-template<typename T> using UT_UniquePtr = std::unique_ptr<T>;
-#endif
 
 using namespace openvdb;
 using namespace openvdb::points;
@@ -79,6 +74,7 @@ gaStorageFromAttrString(const openvdb::Name& type)
 {
     if (type == "string")           return GA_STORE_STRING;
     else if (type == "bool")        return GA_STORE_BOOL;
+    else if (type == "int8")        return GA_STORE_INT8;
     else if (type == "int16")       return GA_STORE_INT16;
     else if (type == "int32")       return GA_STORE_INT32;
     else if (type == "int64")       return GA_STORE_INT64;
@@ -102,6 +98,7 @@ gaStorageFromAttrString(const openvdb::Name& type)
 
 template<typename T> struct GAHandleTraits    { using RW = GA_RWHandleF; using RO = GA_ROHandleF; };
 template<> struct GAHandleTraits<bool>        { using RW = GA_RWHandleI; using RO = GA_ROHandleI; };
+template<> struct GAHandleTraits<int8_t>      { using RW = GA_RWHandleI; using RO = GA_ROHandleI; };
 template<> struct GAHandleTraits<int16_t>     { using RW = GA_RWHandleI; using RO = GA_ROHandleI; };
 template<> struct GAHandleTraits<int32_t>     { using RW = GA_RWHandleI; using RO = GA_ROHandleI; };
 template<> struct GAHandleTraits<int64_t>     { using RW = GA_RWHandleID; using RO = GA_ROHandleID; };
@@ -670,6 +667,8 @@ convertAttributeFromHoudini(PointDataTree& tree, const tools::PointIndexTree& in
     else {
         if (storage == GA_STORE_BOOL) {
             convertAttributeFromHoudini<bool>(tree, indexTree, name, attribute, defaults, width);
+        } else if (storage == GA_STORE_INT8) {
+            convertAttributeFromHoudini<int8_t>(tree, indexTree, name, attribute, defaults, width);
         } else if (storage == GA_STORE_INT16) {
             convertAttributeFromHoudini<int16_t>(tree, indexTree, name, attribute, defaults, width);
         } else if (storage == GA_STORE_INT32) {
@@ -862,6 +861,8 @@ gaDefaultsFromDescriptor(const openvdb::points::AttributeSet::Descriptor& descri
 
     if (type == "bool") {
         return gaDefaultsFromDescriptorTyped<bool, int32>(descriptor, name);
+    } else if (type == "int8") {
+         return gaDefaultsFromDescriptorTyped<int8_t, int32>(descriptor, name);
     } else if (type == "int16") {
          return gaDefaultsFromDescriptorTyped<int16_t, int32>(descriptor, name);
     } else if (type == "int32") {
@@ -921,52 +922,37 @@ PointDataGrid::Ptr
 convertHoudiniToPointDataGrid(const GU_Detail& ptGeo,
                               const int compression,
                               const AttributeInfoMap& attributes,
-                              const math::Transform& transform)
+                              const math::Transform& transform,
+                              const WarnFunc& warnings)
 {
     using HoudiniPositionAttribute = HoudiniReadAttribute<Vec3d>;
 
-    // store point group information
+    // initialize primitive offsets
 
-    const GA_ElementGroupTable& elementGroups = ptGeo.getElementGroupTable(GA_ATTRIB_POINT);
-
-    // Create PointPartitioner compatible P attribute wrapper (for now no offset filtering)
-
-    const GA_Attribute& positionAttribute = *ptGeo.getP();
-
-    OffsetListPtr offsets;
-    OffsetPairListPtr offsetPairs;
-
-    size_t vertexCount = 0;
+    hvdb::OffsetListPtr offsets;
 
     for (GA_Iterator primitiveIt(ptGeo.getPrimitiveRange()); !primitiveIt.atEnd(); ++primitiveIt) {
         const GA_Primitive* primitive = ptGeo.getPrimitiveList().get(*primitiveIt);
 
         if (primitive->getTypeId() != GA_PRIMNURBCURVE) continue;
 
-        vertexCount = primitive->getVertexCount();
+        const size_t vertexCount = primitive->getVertexCount();
+        if (vertexCount == 0) continue;
 
-        if (vertexCount == 0)  continue;
+        if (!offsets) offsets.reset(new hvdb::OffsetList);
 
-        if (!offsets)   offsets.reset(new OffsetList);
-
-        GA_Offset firstOffset = primitive->getPointOffset(0);
+        const GA_Offset firstOffset = primitive->getPointOffset(0);
         offsets->push_back(firstOffset);
-
-        if (vertexCount > 1) {
-            if (!offsetPairs)   offsetPairs.reset(new OffsetPairList);
-
-            for (size_t i = 1; i < vertexCount; i++) {
-                GA_Offset offset = primitive->getPointOffset(i);
-                offsetPairs->push_back(OffsetPair(firstOffset, offset));
-            }
-        }
     }
 
+    // Create PointPartitioner compatible P attribute wrapper (for now no offset filtering)
+
+    const GA_Attribute& positionAttribute = *ptGeo.getP();
     HoudiniPositionAttribute points(positionAttribute, offsets);
 
     // Create PointIndexGrid used for consistent index ordering in all attribute conversion
 
-    tools::PointIndexGrid::Ptr pointIndexGrid =
+    const tools::PointIndexGrid::Ptr pointIndexGrid =
         tools::createPointIndexGrid<tools::PointIndexGrid>(points, transform);
 
     // Create PointDataGrid using position attribute
@@ -974,61 +960,85 @@ convertHoudiniToPointDataGrid(const GU_Detail& ptGeo,
     PointDataGrid::Ptr pointDataGrid;
 
     if (compression == 1 /*FIXED_POSITION_16*/) {
-        pointDataGrid = points::createPointDataGrid<FixedPointCodec<false>, PointDataGrid>(
+        pointDataGrid = createPointDataGrid<FixedPointCodec<false>, PointDataGrid>(
             *pointIndexGrid, points, transform);
     }
     else if (compression == 2 /*FIXED_POSITION_8*/) {
-        pointDataGrid = points::createPointDataGrid<FixedPointCodec<true>, PointDataGrid>(
+        pointDataGrid = createPointDataGrid<FixedPointCodec<true>, PointDataGrid>(
             *pointIndexGrid, points, transform);
     }
     else /*NONE*/ {
-        pointDataGrid = points::createPointDataGrid<NullCodec, PointDataGrid>(
+        pointDataGrid = createPointDataGrid<NullCodec, PointDataGrid>(
             *pointIndexGrid, points, transform);
     }
 
-    tools::PointIndexTree& indexTree = pointIndexGrid->tree();
+    const tools::PointIndexTree& indexTree = pointIndexGrid->tree();
     PointDataTree& tree = pointDataGrid->tree();
-    PointDataTree::LeafIter leafIter = tree.beginLeaf();
 
-    if (!leafIter)  return pointDataGrid;
+    const GA_Size numHoudiniPoints = ptGeo.getNumPoints();
+    UT_ASSERT(numHoudiniPoints >= 0);
 
-    // Append (empty) groups to tree
+    const Index64 numVDBPoints = pointCount(tree);
+    UT_ASSERT(numVDBPoints <= static_cast<Index64>(numHoudiniPoints));
 
-    std::vector<Name> groupNames;
-    groupNames.reserve(elementGroups.entries());
-
-    for (auto it = elementGroups.beginTraverse(), itEnd = elementGroups.endTraverse();
-        it != itEnd; ++it)
-    {
-        groupNames.push_back((*it)->getName().toStdString());
+    if (numVDBPoints < static_cast<Index64>(numHoudiniPoints)) {
+        warnings("Points contain NAN positional values. These points will not be converted.");
     }
 
-    appendGroups(tree, groupNames);
+    if (!tree.cbeginLeaf())  return pointDataGrid;
 
-    // Set group membership in tree
+    // store point group information
 
-    const int64_t numPoints = ptGeo.getNumPoints();
-    std::vector<short> inGroup(numPoints, short(0));
+    const GA_ElementGroupTable& elementGroups = ptGeo.getElementGroupTable(GA_ATTRIB_POINT);
+    const int64_t numGroups = elementGroups.entries(); // including internal groups
 
-    for (auto it = elementGroups.beginTraverse(), itEnd = elementGroups.endTraverse();
-        it != itEnd; ++it)
-    {
-        // insert group offsets
+    if (numGroups > 0) {
 
-        GA_Offset start, end;
-        GA_Range range(**it);
-        for (GA_Iterator rangeIt = range.begin(); rangeIt.blockAdvance(start, end); ) {
-            end = std::min(end, GA_Offset(numPoints));
-            for (GA_Offset off = start; off < end; ++off) {
-                UT_ASSERT(off < GA_Offset(numPoints));
-                inGroup[off] = short(1);
-            }
+        // Append (empty) groups to tree
+
+        std::vector<Name> groupNames;
+        groupNames.reserve(numGroups);
+
+        for (auto it = elementGroups.beginTraverse(), itEnd = elementGroups.endTraverse();
+            it != itEnd; ++it) {
+            groupNames.emplace_back((*it)->getName().toStdString());
         }
 
-        const Name groupName = (*it)->getName().toStdString();
-        setGroup(tree, indexTree, inGroup, groupName);
+        appendGroups(tree, groupNames);
 
-        std::fill(inGroup.begin(), inGroup.end(), short(0));
+        // create the group membership vector at a multiple of 1024 for fast parallel resetting
+
+        const size_t groupVectorSize = numHoudiniPoints + (1024 - (numHoudiniPoints % 1024));
+        std::vector<short> inGroup(groupVectorSize, short(0));
+
+        // Set group membership in tree
+        // @todo parallelize group membership construction
+
+        for (auto it = elementGroups.beginTraverse(), itEnd = elementGroups.endTraverse();
+            it != itEnd; ++it) {
+
+            GA_Offset start, end;
+            GA_Range range(**it);
+            for (GA_Iterator rangeIt = range.begin(); rangeIt.blockAdvance(start, end); ) {
+                end = std::min(end, numHoudiniPoints);
+                for (GA_Offset off = start; off < end; ++off) {
+                    UT_ASSERT(off < GA_Offset(numHoudiniPoints));
+                    inGroup[off] = short(1);
+                }
+            }
+
+            const Name groupName = (*it)->getName().toStdString();
+            setGroup(tree, indexTree, inGroup, groupName);
+
+            // reset groups to 0
+
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, groupVectorSize / 1024),
+                [&inGroup](const tbb::blocked_range<size_t>& range) {
+                    for (size_t n = range.begin(), N = range.end(); n != N; ++n) {
+                        std::fill_n(inGroup.begin() + n*1024, 1024, 0);
+                    }
+                });
+        }
     }
 
     // Add other attributes to PointDataGrid
@@ -1133,15 +1143,15 @@ convertPointDataGridToHoudini(
             continue;
         }
 
+        const auto index = static_cast<unsigned>(namePos.second);
+        const AttributeArray& array = leafIter->constAttributeArray(index);
+
         // don't convert group attributes
-        if (descriptor.hasGroup(name))  continue;
+        if (isGroup(array))    continue;
+
+        const unsigned stride = array.stride();
 
         GA_RWAttributeRef attributeRef = detail.findPointAttribute(name.c_str());
-
-        const auto index = static_cast<unsigned>(namePos.second);
-
-        const AttributeArray& array = leafIter->constAttributeArray(index);
-        const unsigned stride = array.stride();
 
         const NamePair& type = descriptor.type(index);
         const Name valueType(isString(array) ? "string" : type.first);
@@ -1203,6 +1213,11 @@ convertPointDataGridToHoudini(
         }
         else if (valueType == "bool") {
             HoudiniWriteAttribute<bool> attribute(*attributeRef.getAttribute());
+            convertPointDataGridAttribute(attribute, tree, offsets, startOffset, index, stride,
+                filter, inCoreOnly);
+        }
+        else if (valueType == "int8") {
+            HoudiniWriteAttribute<int8_t> attribute(*attributeRef.getAttribute());
             convertPointDataGridAttribute(attribute, tree, offsets, startOffset, index, stride,
                 filter, inCoreOnly);
         }
@@ -1303,8 +1318,8 @@ convertPointDataGridToHoudini(
 
 void
 populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
-                            std::vector<std::string>& warnings,
-                            const GU_Detail& detail)
+                            const GU_Detail& detail,
+                            const WarnFunc& warnings)
 {
     using namespace openvdb::math;
 
@@ -1340,7 +1355,7 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
                 std::stringstream ss;
                 ss << "Detail attribute \"" << attribute->getName() << "\" " <<
                     "unsupported vector type for metadata conversion.";
-                warnings.push_back(ss.str().c_str());
+                warnings(ss.str());
                 continue;
             }
             UT_ASSERT(metadata);
@@ -1356,7 +1371,7 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
                 std::stringstream ss;
                 ss << "Detail attribute \"" << attribute->getName() << "\" " <<
                     "unsupported quaternion type for metadata conversion.";
-                warnings.push_back(ss.str().c_str());
+                warnings(ss.str());
                 continue;
             }
         } else if (isMatrix3) {
@@ -1370,7 +1385,7 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
                 std::stringstream ss;
                 ss << "Detail attribute \"" << attribute->getName() << "\" " <<
                     "unsupported matrix3 type for metadata conversion.";
-                warnings.push_back(ss.str().c_str());
+                warnings(ss.str());
                 continue;
             }
         } else if (isMatrix4) {
@@ -1384,13 +1399,15 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
                 std::stringstream ss;
                 ss << "Detail attribute \"" << attribute->getName() << "\" " <<
                     "unsupported matrix4 type for metadata conversion.";
-                warnings.push_back(ss.str().c_str());
+                warnings(ss.str());
                 continue;
             }
         } else {
             for (int i = 0; i < width; i++) {
                 if (storage == GA_STORE_BOOL) {
                     metadata = createTypedMetadataFromAttribute<bool>(attribute, i);
+                } else if (storage == GA_STORE_INT8) {
+                    metadata = createTypedMetadataFromAttribute<int8_t>(attribute, i);
                 } else if (storage == GA_STORE_INT16) {
                     metadata = createTypedMetadataFromAttribute<int16_t>(attribute, i);
                 } else if (storage == GA_STORE_INT32) {
@@ -1409,7 +1426,7 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
                     std::stringstream ss;
                     ss << "Detail attribute \"" << attribute->getName() << "\" " <<
                         "unsupported type for metadata conversion.";
-                    warnings.push_back(ss.str().c_str());
+                    warnings(ss.str());
                     continue;
                 }
                 UT_ASSERT(metadata);
@@ -1429,7 +1446,7 @@ populateMetadataFromHoudini(openvdb::points::PointDataGrid& grid,
 void
 convertMetadataToHoudini(GU_Detail& detail,
                          const openvdb::MetaMap& metaMap,
-                         std::vector<std::string>& warnings)
+                         const WarnFunc& warnings)
 {
     struct Local {
         static bool isGlobalMetadata(const Name& name) {
@@ -1539,6 +1556,7 @@ convertMetadataToHoudini(GU_Detail& detail,
         UT_ASSERT(!attrib.isInvalid());
 
         if (type == openvdb::typeNameAsString<bool>())                 populateHoudiniDetailAttribute<bool>(attrib, metaMap, key, index);
+        else if (type == openvdb::typeNameAsString<int8_t>())          populateHoudiniDetailAttribute<int8_t>(attrib, metaMap, key, index);
         else if (type == openvdb::typeNameAsString<int16_t>())         populateHoudiniDetailAttribute<int16_t>(attrib, metaMap, key, index);
         else if (type == openvdb::typeNameAsString<int32_t>())         populateHoudiniDetailAttribute<int32_t>(attrib, metaMap, key, index);
         else if (type == openvdb::typeNameAsString<int64_t>())         populateHoudiniDetailAttribute<int64_t>(attrib, metaMap, key, index);
@@ -1552,7 +1570,7 @@ convertMetadataToHoudini(GU_Detail& detail,
             std::stringstream ss;
             ss << "Metadata value \"" << key
                 << "\" unsupported type for detail attribute conversion.";
-            warnings.push_back(ss.str());
+            warnings(ss.str());
         }
     }
 }
@@ -1610,10 +1628,128 @@ attributeStorageType(const GA_Attribute* const attribute)
 
 
 void
+collectPointInfo(const PointDataGrid& grid,
+                 std::string& countStr,
+                 std::string& groupStr,
+                 std::string& attributeStr)
+{
+    using AttributeSet = openvdb::points::AttributeSet;
+    using Descriptor = openvdb::points::AttributeSet::Descriptor;
+
+    const PointDataTree& tree = grid.constTree();
+
+    // iterate through all leaf nodes to find out if all are out-of-core
+    bool allOutOfCore = true;
+    for (auto iter = tree.cbeginLeaf(); iter; ++iter) {
+        if (!iter->buffer().isOutOfCore()) {
+            allOutOfCore = false;
+            break;
+        }
+    }
+
+    openvdb::Index64 totalPointCount = 0;
+
+    // it is more technically correct to rely on the voxel count as this may be
+    // out of sync with the attribute size, however for faster node preview when
+    // the voxel buffers are all out-of-core, count up the sizes of the first
+    // attribute array instead
+
+    if (allOutOfCore) {
+        for (auto iter = tree.cbeginLeaf(); iter; ++iter) {
+            if (iter->attributeSet().size() > 0) {
+                totalPointCount += iter->constAttributeArray(0).size();
+            }
+        }
+    }
+    else {
+        totalPointCount = openvdb::points::pointCount(tree);
+    }
+
+    std::ostringstream os;
+    os << openvdb::util::formattedInt(totalPointCount);
+    countStr = os.str();
+
+    os.clear();
+    os.str("");
+
+    const auto iter = tree.cbeginLeaf();
+    if (!iter) return;
+
+    const AttributeSet& attributeSet = iter->attributeSet();
+    const Descriptor& descriptor = attributeSet.descriptor();
+
+    std::string viewportGroupName = "";
+    if (StringMetadata::ConstPtr stringMeta =
+        grid.getMetadata<StringMetadata>(META_GROUP_VIEWPORT)) {
+        viewportGroupName = stringMeta->value();
+    }
+
+    const Descriptor::NameToPosMap& groupMap = descriptor.groupMap();
+
+    bool first = true;
+    for (const auto& it : groupMap) {
+
+        if (first) first = false;
+        else os << ", ";
+
+        // add an asterisk as a viewport group indicator
+        if (it.first == viewportGroupName) os << "*";
+
+        os << it.first << "(";
+
+        // for faster node preview when all the voxel buffers are out-of-core,
+        // don't load the group arrays to display the group sizes, just print
+        // "out-of-core" instead @todo - put the group sizes into the grid
+        // metadata on write for this use case
+
+        if (allOutOfCore) os << "out-of-core";
+        else {
+            const openvdb::points::GroupFilter filter(it.first, attributeSet);
+            os << openvdb::util::formattedInt(pointCount(tree, filter));
+        }
+        os << ")";
+    }
+
+    groupStr = (os.str().empty() ? "none" : os.str());
+
+    os.clear();
+    os.str("");
+
+    const Descriptor::NameToPosMap& nameToPosMap = descriptor.map();
+
+    first = true;
+    for (const auto& it : nameToPosMap) {
+        const openvdb::points::AttributeArray& array = *(attributeSet.getConst(it.second));
+        if (isGroup(array)) continue;
+
+        if (first) first = false;
+        else os << ", ";
+
+        const openvdb::NamePair& type = descriptor.type(it.second);
+        const openvdb::Name& codecType = type.second;
+
+        if (isString(array)) {
+            os << it.first << "[str]";
+        }
+        else {
+            os << it.first << "[" << type.first;
+            // if no value compression, hide the codec
+            os << (codecType != "null" ? "_" + codecType : "");
+            os << "]";
+        }
+
+        if (!array.hasConstantStride()) os << " [dynamic]";
+        else if (array.stride() > 1) os << " [" << array.stride() << "]";
+    }
+
+    attributeStr = (os.str().empty() ? "none" : os.str());
+}
+
+void
 pointDataGridSpecificInfoText(std::ostream& infoStr, const GridBase& grid)
 {
-    const PointDataGrid* pointDataGrid = dynamic_cast<const PointDataGrid*>(&grid);
-
+    const PointDataGrid* pointDataGrid =
+        dynamic_cast<const PointDataGrid*>(&grid);
     if (!pointDataGrid) return;
 
     // match native OpenVDB convention as much as possible
@@ -1628,137 +1764,12 @@ pointDataGridSpecificInfoText(std::ostream& infoStr, const GridBase& grid)
         infoStr <<" <empty>,";
     }
 
-    std::string viewportGroupName = "";
-    if (StringMetadata::ConstPtr stringMeta =
-        grid.getMetadata<StringMetadata>(META_GROUP_VIEWPORT))
-    {
-        viewportGroupName = stringMeta->value();
-    }
+    std::string countStr, groupStr, attributeStr;
+    collectPointInfo(*pointDataGrid, countStr, groupStr, attributeStr);
 
-    const PointDataTree& pointDataTree = pointDataGrid->tree();
-
-    PointDataTree::LeafCIter iter = pointDataTree.cbeginLeaf();
-
-    // iterate through all leaf nodes to find out if all are out-of-core
-    bool allOutOfCore = true;
-    for (; iter; ++iter) {
-        if (!iter->buffer().isOutOfCore()) {
-            allOutOfCore = false;
-            break;
-        }
-    }
-
-    Index64 totalPointCount = 0;
-
-    // it is more technically correct to rely on the voxel count as this may be out of
-    // sync with the attribute size, however for faster node preview when the voxel buffers
-    // are all out-of-core, count up the sizes of the first attribute array instead
-    if (allOutOfCore) {
-        iter = pointDataTree.cbeginLeaf();
-        for (; iter; ++iter) {
-            if (iter->attributeSet().size() > 0) {
-                totalPointCount += iter->constAttributeArray(0).size();
-            }
-        }
-    }
-    else {
-        totalPointCount = pointCount(pointDataTree);
-    }
-
-    infoStr << " count: " << util::formattedInt(totalPointCount) << ",";
-
-    iter = pointDataTree.cbeginLeaf();
-
-    if (!iter.getLeaf()) {
-        infoStr << " attributes: <none>";
-    }
-    else {
-        const AttributeSet::DescriptorPtr& descriptor = iter->attributeSet().descriptorPtr();
-
-        infoStr << " groups: ";
-
-        const AttributeSet::Descriptor::NameToPosMap& groupMap = descriptor->groupMap();
-
-        bool first = true;
-        for (AttributeSet::Descriptor::ConstIterator it = groupMap.begin(), it_end = groupMap.end();
-                it != it_end; ++it) {
-            if (first) {
-                first = false;
-            }
-            else {
-                infoStr << ", ";
-            }
-
-            // add an asterisk as a viewport group indicator
-            if (it->first == viewportGroupName)     infoStr << "*";
-
-            infoStr << it->first << "(";
-
-            // for faster node preview when all the voxel buffers are out-of-core, don't load the
-            // group arrays to display the group sizes, just print "out-of-core" instead
-            // @todo - put the group sizes into the grid metadata on write for this use case
-
-            if (allOutOfCore) {
-                infoStr << "out-of-core";
-            }
-            else {
-                GroupFilter filter(it->first, iter->attributeSet());
-                infoStr << util::formattedInt(pointCount(pointDataTree, filter));
-            }
-
-            infoStr << ")";
-        }
-
-        if (first)  infoStr << "<none>";
-
-        infoStr << ",";
-
-        infoStr << " attributes: ";
-
-        const AttributeSet::Descriptor::NameToPosMap& nameToPosMap = descriptor->map();
-
-        first = true;
-        for (auto it = nameToPosMap.begin(), it_end = nameToPosMap.end(); it != it_end; ++it) {
-            const AttributeArray& array = iter->constAttributeArray(it->second);
-            if (isGroup(array))    continue;
-
-            if (first) {
-                first = false;
-            }
-            else {
-                infoStr << ", ";
-            }
-            const NamePair& type = descriptor->type(it->second);
-
-            const Name valueType = type.first;
-            const Name codecType = type.second;
-
-            infoStr << it->first << "[";
-
-            // if no value compression, hide the codec from the middle-click output
-
-            if (codecType == "null") {
-                infoStr << valueType;
-            }
-            else if (isString(array)) {
-                infoStr << "str";
-            }
-            else {
-                infoStr << valueType << "_" << codecType;
-            }
-
-            if (!array.hasConstantStride()) {
-                infoStr << "[dynamic]";
-            }
-            else if (array.stride() > 1) {
-                infoStr << "[" << array.stride() << "]";
-            }
-
-            infoStr << "]";
-        }
-
-        if (first)  infoStr << "<none>";
-    }
+    infoStr << " count: " << countStr << ",";
+    infoStr << " groups: " << groupStr << ",";
+    infoStr << " attributes: " << attributeStr;
 }
 
 namespace {

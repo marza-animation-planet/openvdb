@@ -47,7 +47,6 @@
 #include <SYS/SYS_Types.h> // for fpreal
 #include <UT/UT_String.h>
 #include <UT/UT_Thread.h>
-#include <UT/UT_Version.h> // for UT_VERSION_INT
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -71,7 +70,12 @@ namespace houdini_utils {
 /// along input 0 connections.
 /// @details The list is ordered from the topmost node to @a startNode.
 /// @note Lock the inputs of the topmost node before cooking the chain.
+/// @deprecated This functionality has been marked as deprecated as OpenVDB
+/// is no longer using this due to changes relating to verbification. Please get
+/// in touch with the Technical Steering Committee if you *are* still relying on
+/// this code and would like it to remain in the houdini_utils library.
 template<typename NodeType>
+OPENVDB_DEPRECATED
 inline std::vector<NodeType*>
 getNodeChain(OP_Context& context, NodeType* startNode, bool addInterest = true)
 {
@@ -79,25 +83,15 @@ getNodeChain(OP_Context& context, NodeType* startNode, bool addInterest = true)
         /// Return the nearest upstream node to the given node, traversing
         /// only input 0 connections and omitting bypassed nodes.
         static inline OP_Node* nextInput(
-#if (UT_VERSION_INT >= 0x0c0500aa) // 12.5.170
             fpreal now,
-#else
-            fpreal /*now*/,
-#endif
             OP_Node* node)
         {
             OP_Node* input = node->getInput(0, /*mark_used=*/true);
-#if (UT_VERSION_INT >= 0x0c0500aa) // 12.5.170
             while (input) {
                 OP_Node* passThrough = input->getPassThroughNode(now, /*mark_used=*/true);
                 if (!passThrough) break;
                 input = passThrough;
             }
-#else
-            while (input && input->getBypass()) {
-                input = input->getInput(0, /*mark_used=*/true);
-            }
-#endif
             return input;
         }
     }; // struct Local
@@ -135,9 +129,14 @@ getNodeChain(OP_Context& context, NodeType* startNode, bool addInterest = true)
 /// (for the duration of the current scope) set the evaluation context
 /// and time for a node other than the one that is currently being cooked.
 /// @internal Entire class is defined in header, so do *NOT* use *_API
+/// @deprecated This functionality has been marked as deprecated as OpenVDB
+/// is no longer using this due to changes relating to verbification. Please get
+/// in touch with the Technical Steering Committee if you *are* still relying on
+/// this code and would like it to remain in the houdini_utils library.
 class OP_EvalScope
 {
 public:
+    OPENVDB_DEPRECATED
     OP_EvalScope(OP_Node& node, OP_Context& context):
         mAutoEvaluator(
             *OPgetDirector()->getCommandManager(),
@@ -150,6 +149,7 @@ public:
         mDirector->pushCwd(mThread, &node);
     }
 
+    OPENVDB_DEPRECATED
     ~OP_EvalScope() { mDirector->popCwd(mThread); }
 
 private:

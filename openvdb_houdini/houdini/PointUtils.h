@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -72,6 +72,7 @@ using OffsetPairListPtr = std::shared_ptr<OffsetPairList>;
 // note that the bool parameter here for toggling in-memory compression is now deprecated
 using AttributeInfoMap = std::map<openvdb::Name, std::pair<int, bool>>;
 
+using WarnFunc = std::function<void (const std::string&)>;
 
 /// Metadata name for viewport groups
 const std::string META_GROUP_VIEWPORT = "group_viewport";
@@ -116,13 +117,15 @@ computeVoxelSizeFromHoudini(
 /// @param  attributes     a vector of VDB Points attributes to be included
 ///                        (empty vector defaults to all)
 /// @param  transform      transform to use for the new point grid
+/// @param  warnings       list of warnings to be added to the SOP
 OPENVDB_HOUDINI_API
 openvdb::points::PointDataGrid::Ptr
 convertHoudiniToPointDataGrid(
     const GU_Detail& detail,
     const int compression,
     const AttributeInfoMap& attributes,
-    const openvdb::math::Transform& transform);
+    const openvdb::math::Transform& transform,
+    const WarnFunc& warnings = [](const std::string&){});
 
 
 /// @brief Convert a VDB Points grid into Houdini points and append them to a Houdini Detail
@@ -150,14 +153,14 @@ convertPointDataGridToHoudini(
 /// @brief Populate VDB Points grid metadata from Houdini detail attributes
 ///
 /// @param  grid           grid to be populated with metadata
-/// @param  warnings       list of warnings to be added to the SOP
 /// @param  detail         GU_Detail to extract the detail attributes from
+/// @param  warnings       list of warnings to be added to the SOP
 OPENVDB_HOUDINI_API
 void
 populateMetadataFromHoudini(
     openvdb::points::PointDataGrid& grid,
-    std::vector<std::string>& warnings,
-    const GU_Detail& detail);
+    const GU_Detail& detail,
+    const WarnFunc& warnings = [](const std::string&){});
 
 
 /// @brief Convert VDB Points grid metadata into Houdini detail attributes
@@ -170,7 +173,7 @@ void
 convertMetadataToHoudini(
     GU_Detail& detail,
     const openvdb::MetaMap& metaMap,
-    std::vector<std::string>& warnings);
+    const WarnFunc& warnings = [](const std::string&){});
 
 
 /// @brief Returns supported tuple sizes for conversion from GA_Attribute
@@ -188,10 +191,30 @@ attributeStorageType(const GA_Attribute* const attribute);
 ///////////////////////////////////////
 
 
-/// @brief If the given grid is a PointDataGrid, add node specific info text to the stream provided
+/// @brief If the given grid is a PointDataGrid, add node specific info text to
+///        the stream provided. This is used to populate the MMB window in Houdini
+///        versions 15 and earlier, as well as the Operator Information Window.
 OPENVDB_HOUDINI_API
 void
 pointDataGridSpecificInfoText(std::ostream&, const openvdb::GridBase&);
+
+/// @brief  Populates string data with information about the provided OpenVDB
+///         Points grid.
+/// @param  grid          The OpenVDB Points grid to retrieve information from.
+/// @param  countStr      The total point count as a formatted integer.
+/// @param  groupStr      The list of comma separated groups (or "none" if no
+///                       groups exist). Enclosed by parentheses.
+/// @param  attributeStr  The list of comma separated attributes (or "none" if
+///                       no attributes exist). Enclosed by parentheses.
+///                       Each attribute takes the form "name [type] [code]
+///                       [stride]" where code and stride are added for non
+///                       default attributes.
+OPENVDB_HOUDINI_API
+void
+collectPointInfo(const openvdb::points::PointDataGrid& grid,
+    std::string& countStr,
+    std::string& groupStr,
+    std::string& attributeStr);
 
 
 ///////////////////////////////////////
@@ -213,6 +236,6 @@ OPENVDB_HOUDINI_API extern const PRM_ChoiceList VDBPointsGroupMenu;
 
 #endif // OPENVDB_HOUDINI_POINT_UTILS_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2018 DreamWorks Animation LLC
+// Copyright (c) 2012-2019 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
