@@ -184,7 +184,7 @@ projs = [
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
     "cppflags": cppflags,
-    "srcs": excons.glob("openvdb/cmd/openvdb_print/*.cc"),
+    "srcs": excons.glob("openvdb/cmd/openvdb_print.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": lib_requires
   },
@@ -197,7 +197,7 @@ projs = [
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
     "cppflags": cppflags,
-    "srcs": excons.glob("openvdb/cmd/openvdb_render/*.cc"),
+    "srcs": excons.glob("openvdb/cmd/openvdb_render.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": [boost.Require(libs=boost_libs),
                openexrRequire,
@@ -213,7 +213,7 @@ projs = [
     "incdirs": [".", "openvdb"] + glew_incdirs,
     "defs": defs + ["OPENVDB_STATICLIB", "OPENVDB_USE_GLFW_3"] + glew_defs,
     "cppflags": cppflags + (" -Wno-deprecated-declarations" if sys.platform == "darwin" else ""),
-    "srcs": excons.glob("openvdb/cmd/openvdb_view/*.cc") +
+    "srcs": excons.glob("openvdb/cmd/openvdb_view.cc") +
             excons.glob("openvdb/viewer/*.cc") +
             glew_srcs,
     "staticlibs": ["openvdb_s"],
@@ -229,7 +229,7 @@ projs = [
     "incdirs": [".", "openvdb"],
     "defs": defs + ["OPENVDB_STATICLIB"],
     "cppflags": cppflags + (" -Wno-unused-variable" if sys.platform != "win32" else ""),
-    "srcs": excons.glob("openvdb/cmd/openvdb_lod/*.cc"),
+    "srcs": excons.glob("openvdb/cmd/openvdb_lod.cc"),
     "staticlibs": ["openvdb_s"],
     "custom": lib_requires
   }
